@@ -29,7 +29,7 @@ from dotenv import load_dotenv
 from keep_alive import start_keep_alive
 from database_manager import db_manager
 from models import User as UserModel
-from db_operations import db, Query
+from db_operations import db
 
 load_dotenv()
 
@@ -50,8 +50,7 @@ if not TOKEN:
 # Initialize PostgreSQL database
 logger.info("Starting with PostgreSQL database")
 
-# Legacy TinyDB compatibility
-User = Query()
+# Removed legacy TinyDB compatibility - now using pure PostgreSQL
 
 # AI session tracking
 ai_sessions = {}
@@ -1346,17 +1345,16 @@ def get_main_menu(user_id: int) -> InlineKeyboardMarkup:
 # User rating system
 def initialize_user_ratings():
     """Initialize rating system for existing users"""
-    users = db.all()
+    users = db.get_all_users()
     for user_data in users:
         if 'ratings' not in user_data:
             db.create_or_update_user(user_data['user_id'], {'ratings': [], 'total_rating': 0.0, 'rating_count': 0})
 
 def add_rating(rated_user_id, rating_value, rater_user_id):
     """Add a rating for a user"""
-    user = db.search(User.user_id == rated_user_id)
+    user = db.get_user(rated_user_id)
     if user:
-        user_data = user[0]
-        ratings = user_data.get('ratings', [])
+        ratings = user.get('ratings', [])
 
         # Check if this rater already rated this user
         existing_rating = next((r for r in ratings if r['rater_id'] == rater_user_id), None)
@@ -1377,11 +1375,11 @@ def add_rating(rated_user_id, rating_value, rater_user_id):
         average_rating = total_rating / rating_count if rating_count > 0 else 0.0
 
         # Update database
-        db.update({
+        db.create_or_update_user(rated_user_id, {
             'ratings': ratings,
             'total_rating': average_rating,
             'rating_count': rating_count
-        }, User.user_id == rated_user_id)
+        })
 
         return average_rating
     return None
@@ -1467,7 +1465,7 @@ async def add_like(from_user_id, to_user_id):
 
 def get_top_rated_users(min_rating=0.0, max_rating=5.0, current_user_id=None):
     """Get users within rating range"""
-    users = db.all()
+    users = db.get_all_users()
     filtered_users = []
 
     for user_data in users:
@@ -3018,7 +3016,7 @@ async def start_browsing_unfiltered_profiles(query, context, user_id):
     current_user = db.get_user(user_id)
     
     # Get all users except current user
-    all_users = db.all()
+    all_users = db.get_all_users()
     logger.info(f"Total users in database: {len(all_users)}")
     
     current_age = current_user.get("age", 18)
@@ -3157,7 +3155,7 @@ async def start_browsing_profiles(query, context, user_id):
     current_user = db.get_user(user_id)
     
     # Get all users except current user
-    all_users = db.all()
+    all_users = db.get_all_users()
     logger.info(f"Total users in database: {len(all_users)}")
     
     current_age = current_user.get("age", 18)
@@ -3570,8 +3568,8 @@ async def show_profile_card(query, context, user_id, profile):
 async def handle_like_profile(query, context, user_id, target_id):
     """Handle liking a profile"""
     try:
-        current_user = db.get(Query().user_id == user_id)
-        target_user = db.get(Query().user_id == target_id)
+        current_user = db.get_user(user_id)
+        target_user = db.get_user(target_id)
 
         if not current_user or not target_user:
             await safe_edit_message(
@@ -4468,11 +4466,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Handle name changes
     if context.user_data.get('changing_name') and update.message.text:
         new_name = update.message.text.strip()
-        db.update({'name': new_name}, Query().user_id == user_id)
+        db.create_or_update_user(user_id, {'name': new_name})
 
         context.user_data.pop('changing_name', None)
 
-        user = db.get(Query().user_id == user_id)
+        user = db.get_user(user_id)
         current_lang = user.get('lang', 'ru') if user else 'ru'
 
         if current_lang == 'en':
@@ -4489,7 +4487,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Handle bio changes
     if context.user_data.get('changing_bio') and update.message.text:
         new_bio = update.message.text.strip()
-        db.update({'bio': new_bio}, Query().user_id == user_id)
+        db.create_or_update_user(user_id, {'bio': new_bio})
 
         context.user_data.pop('changing_bio', None)
         await update.message.reply_text(
@@ -4960,7 +4958,7 @@ Alt3r - это бот для знакомств нейроотличных лю�
 async def debug_profiles(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Debug command to check profiles in database"""
     user_id = update.effective_user.id
-    all_users = db.all()
+    all_users = db.get_all_users()
     
     debug_text = f"🔍 Debug Info:\n\n"
     debug_text += f"Total users in database: {len(all_users)}\n\n"
@@ -5318,7 +5316,7 @@ async def search_by_traits(query, context, user_id):
         return
 
     # Find users with similar traits
-    all_users = db.all()
+    all_users = db.get_all_users()
     similar_users = []
 
     for other_user in all_users:
@@ -5434,7 +5432,7 @@ async def compatibility_search(query, context, user_id):
         return
 
     # Find compatible users
-    all_users = db.all()
+    all_users = db.get_all_users()
     compatible_users = []
 
     for other_user in all_users:
@@ -5494,7 +5492,7 @@ async def show_recommendations(query, context, user_id):
     user_sent_likes = set(user.get('sent_likes', []))
     
     # Find recommended users
-    all_users = db.all()
+    all_users = db.get_all_users()
     recommendations = []
 
     for other_user in all_users:
@@ -5965,12 +5963,12 @@ async def reset_user_matches(query, user_id):
     current_lang = user.get('lang', 'ru') if user else 'ru'
     
     # Clear all match-related data
-    db.update({
+    db.create_or_update_user(user_id, {
         'sent_likes': [],
         'received_likes': [],
         'unnotified_likes': [],
         'declined_likes': []
-    }, User.user_id == user_id)
+    })
     
     if current_lang == 'en':
         success_text = "✅ Matches reset successfully!\n\nYou can now browse all profiles again and start fresh."
@@ -6256,7 +6254,7 @@ async def show_mutual_match_profile(query, current_user, matched_user):
 async def send_mutual_match_notification(user_id, application, matched_user):
     """Send mutual match notification with matched user's profile and revealed usernames"""
     try:
-        user = db.get(Query().user_id == user_id)
+        user = db.get_user(user_id)
         if not user:
             logger.warning(f"User {user_id} not found for mutual match notification")
             return
@@ -6444,7 +6442,7 @@ async def send_message_with_profile(bot, target_id, sender, message_text, is_mat
 async def send_like_notification(user_id, application, sender_id=None):
     """Send notification about new like"""
     try:
-        user = db.get(Query().user_id == user_id)
+        user = db.get_user(user_id)
         if not user:
             logger.warning(f"User {user_id} not found for like notification")
             return
@@ -6454,7 +6452,7 @@ async def send_like_notification(user_id, application, sender_id=None):
         # Get sender info if provided
         sender_name = "Кто-то"
         if sender_id:
-            sender = db.get(Query().user_id == sender_id)
+            sender = db.get_user(sender_id)
             if sender:
                 sender_name = sender.get('name', 'Кто-то')
 
@@ -6484,8 +6482,8 @@ async def send_like_notification(user_id, application, sender_id=None):
 async def show_incoming_profile(query, user_id, target_id):
     """Show profile of someone who liked you"""
     try:
-        current_user = db.get(Query().user_id == user_id)
-        target_user = db.get(Query().user_id == target_id)
+        current_user = db.get_user(user_id)
+        target_user = db.get_user(target_id)
         
         if not current_user or not target_user:
             await safe_edit_message(
@@ -6568,7 +6566,7 @@ async def show_incoming_profile(query, user_id, target_id):
 async def handle_decline_like(query, user_id, target_id):
     """Handle declining someone's like"""
     try:
-        current_user = db.get(Query().user_id == user_id)
+        current_user = db.get_user(user_id)
         if not current_user:
             return
 
@@ -6579,7 +6577,11 @@ async def handle_decline_like(query, user_id, target_id):
                 declined_likes.append(target_id)
             return {**doc, 'declined_likes': declined_likes}
         
-        db.update(atomic_decline_browse_add, Query().user_id == user_id)
+        # Update user with declined like
+        current_declined = current_user.get('declined_likes', [])
+        if target_id not in current_declined:
+            current_declined.append(target_id)
+            db.create_or_update_user(user_id, {'declined_likes': current_declined})
 
         lang = current_user.get('lang', 'ru')
         
@@ -6625,8 +6627,8 @@ async def handle_decline_like(query, user_id, target_id):
 async def handle_like_back(query, context, user_id, target_id):
     """Handle liking back someone who liked you"""
     try:
-        current_user = db.get(Query().user_id == user_id)
-        target_user = db.get(Query().user_id == target_id)
+        current_user = db.get_user(user_id)
+        target_user = db.get_user(target_id)
 
         if not current_user or not target_user:
             # Try to edit message text first, if it fails try caption, if both fail send new message
@@ -6770,10 +6772,23 @@ async def handle_decline_like(query, user_id, target_id):
             }
 
         # Perform atomic update
-        updated = db.update(atomic_decline_update, Query().user_id == user_id)
-        if not updated:
-            await query.answer("❌ Ошибка")
-            return
+        current_user_data = db.get_user(user_id)
+        if current_user_data:
+            declined_likes = current_user_data.get('declined_likes', [])
+            received_likes = current_user_data.get('received_likes', [])
+            
+            # Add to declined if not already there
+            if target_id not in declined_likes:
+                declined_likes.append(target_id)
+                
+            # Remove from received if present  
+            if target_id in received_likes:
+                received_likes.remove(target_id)
+                
+            db.create_or_update_user(user_id, {
+                'declined_likes': declined_likes,
+                'received_likes': received_likes
+            })
 
         await query.edit_message_text(
             "👎 Пропущено",
@@ -6789,8 +6804,8 @@ async def handle_decline_like(query, user_id, target_id):
 async def handle_like_incoming_profile(query, context, user_id, target_id):
     """Handle liking back someone from incoming likes"""
     try:
-        current_user = db.get(Query().user_id == user_id)
-        target_user = db.get(Query().user_id == target_id)
+        current_user = db.get_user(user_id)
+        target_user = db.get_user(target_id)
 
         if not current_user or not target_user:
             await safe_edit_message(
@@ -6857,9 +6872,12 @@ async def handle_pass_incoming_profile(query, context, user_id, target_id):
             return {**doc, 'declined_likes': declined_likes}
         
         # Perform atomic update
-        updated = db.update(atomic_pass_update, Query().user_id == user_id)
-        if not updated:
-            return
+        current_user_data = db.get_user(user_id)
+        if current_user_data:
+            declined_likes = current_user_data.get('declined_likes', [])
+            if target_id not in declined_likes:
+                declined_likes.append(target_id)
+                db.create_or_update_user(user_id, {'declined_likes': declined_likes})
 
         await safe_edit_message(
             query,
@@ -6902,8 +6920,8 @@ async def show_next_incoming_like(query, context, user_id):
 async def show_detailed_match_profile(query, user_id, target_id):
     """Show detailed profile of matched user with clickable Telegram username"""
     try:
-        current_user = db.get(Query().user_id == user_id)
-        target_user = db.get(Query().user_id == target_id)
+        current_user = db.get_user(user_id)
+        target_user = db.get_user(target_id)
         
         if not current_user or not target_user:
             await safe_edit_message(
