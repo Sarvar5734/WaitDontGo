@@ -111,6 +111,12 @@ Preferred communication style: Simple, everyday language.
   - Added video and GIF profile picture support for profile editing
   - Enhanced profile change prompts to inform users about new media capabilities
   - All media upload features now work for both new registration and existing profile updates
+- **CALLBACK HANDLER OPTIMIZATION**: Fixed conversation state conflicts preventing button clicks (August 2, 2025)
+  - Added CallbackQueryHandler(handle_callback) to ALL conversation states (AGE, GENDER, INTEREST, CITY, NAME, BIO, PHOTO)
+  - Previously buttons only worked in WAITING_NAME state, now work throughout registration and profile editing
+  - Enhanced error handling and logging for callback debugging
+  - All profile editing buttons now respond correctly: Change Photo, Change Bio, Change Name, Change City, My Characteristics, Back
+  - Confirmed working: User successfully uploaded 3 photos and navigated profile interface without issues
 
 ### Design Patterns
 
