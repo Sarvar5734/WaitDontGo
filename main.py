@@ -412,7 +412,12 @@ TEXTS = {
         "btn_done": "✅ Готово",
         "btn_skip_remaining": "⏭️ Пропустить остальные",
         "use_gps": "📍 Использовать GPS",
-        "manual_entry": "✍️ Ввести вручную"
+        "manual_entry": "✍️ Ввести вручную",
+        "reset_matches": "💔 Сбросить совпадения",
+        "change_photo": "📸 Изменить фото",
+        "change_bio": "✍️ Изменить описание",
+        "nd_traits": "Нейроотличия", 
+        "nd_characteristics_label": "Характеристики"
     },
     "en": {
         "welcome": "🧠 Welcome to Alt3r!\n\nThis is a dating bot for neurodivergent people. Here you can find understanding, support and real connections with those who share your experience.\n\n✨ Let's create your profile!",
@@ -634,7 +639,12 @@ TEXTS = {
         "texture_sensitivity": "Texture Sensitivity",
         "time_blindness": "Time Blindness",
         "vestibular_issues": "Vestibular Issues",
-        "working_memory_issues": "Working Memory Issues"
+        "working_memory_issues": "Working Memory Issues",
+        "reset_matches": "💔 Reset Matches",
+        "change_photo": "📸 Change Photo",
+        "change_bio": "✍️ Change Bio",
+        "nd_traits": "ND Traits",
+        "nd_characteristics_label": "Characteristics"
     }
 }
 
@@ -2752,9 +2762,9 @@ async def show_user_profile(query, user_id):
     keyboard = [
         [InlineKeyboardButton(get_text(user_id, "change_photo"), callback_data="change_photo"),
          InlineKeyboardButton(get_text(user_id, "change_bio"), callback_data="change_bio")],
-        [InlineKeyboardButton("👤 Изменить имя", callback_data="change_name"),
-         InlineKeyboardButton("📍 Изменить город", callback_data="change_city")],
-        [InlineKeyboardButton("🧠 " + ("My Characteristics" if user.get('lang') == 'en' else "Изменить нейроотличия"), callback_data="manage_symptoms")],
+        [InlineKeyboardButton(get_text(user_id, "change_name"), callback_data="change_name"),
+         InlineKeyboardButton(get_text(user_id, "change_city"), callback_data="change_city")],
+        [InlineKeyboardButton(get_text(user_id, "my_characteristics"), callback_data="manage_symptoms")],
         [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
     ]
 
@@ -3965,11 +3975,11 @@ async def show_profile_settings_menu(query, user_id):
     keyboard = [
         [InlineKeyboardButton(get_text(user_id, "change_photo"), callback_data="change_photo")],
         [InlineKeyboardButton(get_text(user_id, "change_bio"), callback_data="change_bio")],
-        [InlineKeyboardButton("📍 " + ("Change City" if current_lang == 'en' else "Изменить город"), callback_data="change_city")],
-        [InlineKeyboardButton("🧠 " + ("My Characteristics" if current_lang == 'en' else "Изменить особенности/характеристики"), callback_data="manage_symptoms")],
-        [InlineKeyboardButton("💔 " + ("Reset Matches" if current_lang == 'en' else "Сбросить совпадения"), callback_data="reset_matches")],
-        [InlineKeyboardButton("🔄 " + ("Recreate Profile" if current_lang == 'en' else "Заполнить анкету заново"), callback_data="recreate_profile")],
-        [InlineKeyboardButton("🗑️ " + ("Delete Account" if current_lang == 'en' else "Удалить аккаунт"), callback_data="delete_account")],
+        [InlineKeyboardButton(get_text(user_id, "change_city"), callback_data="change_city")],
+        [InlineKeyboardButton(get_text(user_id, "my_characteristics"), callback_data="manage_symptoms")],
+        [InlineKeyboardButton(get_text(user_id, "reset_matches"), callback_data="reset_matches")],
+        [InlineKeyboardButton(get_text(user_id, "recreate_profile"), callback_data="recreate_profile")],
+        [InlineKeyboardButton(get_text(user_id, "delete_account"), callback_data="delete_account")],
         [InlineKeyboardButton(get_text(user_id, "change_language_btn"), callback_data="change_language")],
         [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
     ]
