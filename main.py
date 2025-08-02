@@ -3260,10 +3260,7 @@ async def show_profile_card(query, context, user_id, profile):
     current_index = context.user_data.get('current_profile_index', 0)
     total_profiles = len(context.user_data.get('browsing_profiles', []))
 
-    # Message button row - removed direct messaging since users can contact after mutual likes
-    message_buttons = [
-        InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{profile['user_id']}")
-    ]
+    # Removed message and video buttons - users can contact directly after mutual likes
 
     # Main navigation row: Back, Heart, Next (always show all three)
     nav_buttons = [
@@ -3277,7 +3274,7 @@ async def show_profile_card(query, context, user_id, profile):
         InlineKeyboardButton("🏠", callback_data="back_to_menu")
     ]
 
-    keyboard = [message_buttons, nav_buttons, bottom_buttons]
+    keyboard = [nav_buttons, bottom_buttons]
 
     photos = profile.get('photos', [])
     
@@ -4834,7 +4831,6 @@ async def show_nd_result(query, context, user_id, result_tuple):
 
     keyboard = [
         [InlineKeyboardButton("❤️", callback_data=f"like_{other_user['user_id']}")],
-        [InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{other_user['user_id']}")],
         [InlineKeyboardButton("⏭️ Следующий", callback_data="next_nd_result") if current_index < total_results - 1 else InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu")]
     ]
 
@@ -5048,16 +5044,15 @@ async def show_recommendation_result(query, context, user_id, result_tuple):
 
     keyboard = [
         [InlineKeyboardButton("❤️", callback_data=f"like_{other_user['user_id']}")],
-        [InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{other_user['user_id']}")],
         []
     ]
 
     # Navigation
     if current_index < total_results - 1:
-        keyboard[2].append(InlineKeyboardButton("⏭️ Следующая", callback_data="next_recommendation"))
+        keyboard[1].append(InlineKeyboardButton("⏭️ Следующая", callback_data="next_recommendation"))
     
-    if not keyboard[2]:
-        keyboard[2].append(InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu"))
+    if not keyboard[1]:
+        keyboard[1].append(InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu"))
 
     keyboard.append([InlineKeyboardButton("🔙 К поиску", callback_data="nd_search")])
 
@@ -5114,19 +5109,18 @@ async def show_compatibility_result(query, context, user_id, result_tuple):
 
     keyboard = [
         [InlineKeyboardButton("❤️", callback_data=f"like_{other_user['user_id']}")],
-        [InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{other_user['user_id']}")],
         []
     ]
 
     # Navigation buttons
     if current_index < total_results - 1:
-        keyboard[2].append(InlineKeyboardButton("⏭️ Следующий", callback_data="next_compatibility"))
+        keyboard[1].append(InlineKeyboardButton("⏭️ Следующий", callback_data="next_compatibility"))
     
     if current_index > 0:
-        keyboard[2].append(InlineKeyboardButton("⏪ Предыдущий", callback_data="prev_compatibility"))
+        keyboard[1].append(InlineKeyboardButton("⏪ Предыдущий", callback_data="prev_compatibility"))
     
-    if not keyboard[2]:  # If no navigation buttons
-        keyboard[2].append(InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu"))
+    if not keyboard[1]:  # If no navigation buttons
+        keyboard[1].append(InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu"))
 
     keyboard.append([InlineKeyboardButton("🔙 К поиску", callback_data="nd_search")])
 
