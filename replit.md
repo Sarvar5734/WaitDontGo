@@ -10,40 +10,46 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Core Components
+### Code Structure (Modular Design)
 
-**Telegram Bot Framework**
-- **Framework**: Python-telegram-bot library (v20.8)
-- **Architecture**: Async/await pattern with conversation handlers
-- **Features**: 
-  - Multi-step user registration flow
-  - Inline keyboard interactions
-  - Profile creation and management
-  - Photo and media handling
-  - Bilingual support (English/Russian)
+**Main Entry Point** (`main.py`)
+- Clean, focused entry point with minimal code
+- Imports all handlers and database models from separate modules
+- Configures and starts the Telegram bot application
+- Handler registration and error handling
 
-**Database Layer**
+**Database Layer** (`database.py`)
 - **Database**: PostgreSQL with SQLAlchemy ORM
-- **Storage**: Cloud-hosted PostgreSQL database
-- **Schema**: Relational database with User and Feedback tables
-- **Features**: ACID compliance, JSON field support for complex data, automatic timestamps
+- **Models**: User and Feedback models with comprehensive fields
+- **Operations**: Database session management, user CRUD operations
+- **Features**: Matching algorithms, like/pass interactions, user statistics
+- **Schema**: JSON fields for arrays (photos, likes, matches, traits)
 
-**Neurodivergent Matching System**
-- **Traits Database**: Comprehensive ND trait definitions in multiple languages
-- **Matching Algorithm**: Compatibility-based profile filtering
-- **Features**: Trait-based search, symptom matching, preference alignment
+**Translation System** (`translations.py`)
+- **Centralized Translations**: All bot text in TEXTS dictionary
+- **Bilingual Support**: English and Russian translations
+- **Easy Translation Management**: Simple key-value structure for adding new languages
+- **Neurodivergent Traits**: Comprehensive ND trait definitions in multiple languages
+- **Helper Functions**: Language detection, text retrieval, coverage statistics
 
-**Keep-Alive Service**
+**Handler Modules** (`handlers.py`)
+- **Registration Flow**: Complete user onboarding conversation handlers
+- **Menu System**: Main menu navigation and callback handling
+- **Profile Management**: Profile viewing, editing, and browsing
+- **Dating Features**: Like/pass system, match detection, profile browsing
+- **Navigation**: Back buttons and menu transitions
+
+**Keep-Alive Service** (`keep_alive.py`)
 - **Purpose**: Prevents the bot from going idle on hosting platforms
-- **Implementation**: Custom HTTP server using Python's built-in `http.server` module
-- **Features**: 
-  - Threaded server using `ThreadingMixIn` for concurrent request handling
-  - Health check endpoint with styled HTML response
-  - Logging integration for monitoring and debugging
+- **Implementation**: Custom HTTP server for health checks
+- **Features**: Threaded server, logging integration
 
-**Removed Components**
-- **AI Integration**: OpenAI integration removed per user request
-- **Simplified Architecture**: Focus on core dating functionality without AI assistance
+### Recent Changes (August 2025)
+- **Complete Code Restructure**: Separated monolithic main.py into 4 focused modules
+- **Enhanced Translation System**: Centralized, easy-to-manage translation structure
+- **Improved Database Operations**: Dedicated database module with optimized queries
+- **Modular Handlers**: All bot handlers organized by functionality
+- **Simplified Main Entry**: Clean main.py with just application setup and handler registration
 
 ### Design Patterns
 
