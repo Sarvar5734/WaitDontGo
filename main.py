@@ -3260,9 +3260,9 @@ async def show_profile_card(query, context, user_id, profile):
     current_index = context.user_data.get('current_profile_index', 0)
     total_profiles = len(context.user_data.get('browsing_profiles', []))
 
-    # Message button row - removed direct messaging since users can contact after mutual likes
+    # Message button row
     message_buttons = [
-        InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{profile['user_id']}")
+        InlineKeyboardButton("💌 Сообщение", callback_data=f"send_message_{profile['user_id']}")
     ]
 
     # Main navigation row: Back, Heart, Next (always show all three)
@@ -4834,7 +4834,7 @@ async def show_nd_result(query, context, user_id, result_tuple):
 
     keyboard = [
         [InlineKeyboardButton("❤️", callback_data=f"like_{other_user['user_id']}")],
-        [InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{other_user['user_id']}")],
+        [InlineKeyboardButton("💌 Сообщение", callback_data=f"send_message_{other_user['user_id']}")],
         [InlineKeyboardButton("⏭️ Следующий", callback_data="next_nd_result") if current_index < total_results - 1 else InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu")]
     ]
 
@@ -5048,7 +5048,7 @@ async def show_recommendation_result(query, context, user_id, result_tuple):
 
     keyboard = [
         [InlineKeyboardButton("❤️", callback_data=f"like_{other_user['user_id']}")],
-        [InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{other_user['user_id']}")],
+        [InlineKeyboardButton("💌 Сообщение", callback_data=f"send_message_{other_user['user_id']}")],
         []
     ]
 
@@ -5114,7 +5114,7 @@ async def show_compatibility_result(query, context, user_id, result_tuple):
 
     keyboard = [
         [InlineKeyboardButton("❤️", callback_data=f"like_{other_user['user_id']}")],
-        [InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{other_user['user_id']}")],
+        [InlineKeyboardButton("💌 Сообщение", callback_data=f"send_message_{other_user['user_id']}")],
         []
     ]
 
