@@ -1388,7 +1388,7 @@ def add_rating(rated_user_id, rating_value, rater_user_id):
 
 def get_user_rating(user_id):
     """Get user's current rating"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     if user:
         return {
             'rating': user.get('total_rating', 0.0),
@@ -1678,7 +1678,7 @@ async def handle_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             logger.info(f"User {user_id} entered age: {age}")
 
             # Get current user to check language
-            user = db.get(User.user_id == user_id)
+            user = db.get_user(user_id)
             
             keyboard = [
                 [KeyboardButton(get_text(user_id, "btn_girl"))],
@@ -1784,7 +1784,7 @@ async def handle_interest(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
 
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
 
     await update.message.reply_text(
@@ -1885,7 +1885,7 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     # Handle manual city input button
     elif update.message.text == "✍️ Ввести город вручную" or update.message.text == "✍️ Enter city manually":
-        user = db.get(User.user_id == user_id)
+        user = db.get_user(user_id)
         lang = user.get('lang', 'ru') if user else 'ru'
 
         if lang == 'en':
@@ -1914,7 +1914,7 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     # If neither location nor valid text, ask again
     else:
-        user = db.get(User.user_id == user_id)
+        user = db.get_user(user_id)
         lang = user.get('lang', 'ru') if user else 'ru'
 
         if lang == 'en':
@@ -2008,7 +2008,7 @@ async def handle_bio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def show_registration_nd_traits(update, context, user_id):
     """Show ND traits selection during registration"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
 
     text = get_text(user_id, "nd_selection_prompt") + "\n\n"
@@ -2564,7 +2564,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await confirm_recreate_profile(query, user_id)
         elif data == "confirm_recreate":
             # Start profile recreation
-            user = db.get(User.user_id == user_id)
+            user = db.get_user(user_id)
             current_lang = user.get('lang', 'ru') if user else 'ru'
 
             # Keep the language setting but clear all other profile data
@@ -2604,7 +2604,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await reset_user_matches(query, user_id)
         elif data == "confirm_delete":
             # Delete user account
-            user = db.get(User.user_id == user_id)
+            user = db.get_user(user_id)
             user_lang = user.get('lang', 'ru') if user else 'ru'
             
             if user_lang == 'en':
@@ -2695,7 +2695,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error in handle_callback: {e}")
         try:
-            user = db.get(User.user_id == user_id)
+            user = db.get_user(user_id)
             lang = user.get('lang', 'ru') if user else 'ru'
             error_text = "Произошла ошибка. Попробуйте еще раз." if lang == 'ru' else "An error occurred. Please try again."
             await safe_edit_message(
@@ -2715,7 +2715,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_user_profile(query, user_id):
     """Show user's own profile"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     if not user:
         await query.edit_message_text(
             get_text(user_id, "profile_not_found"),
@@ -2843,7 +2843,7 @@ async def show_user_profile(query, user_id):
 
 async def browse_profiles(query, context, user_id):
     """Browse other user profiles"""
-    current_user = db.get(User.user_id == user_id)
+    current_user = db.get_user(user_id)
     if not current_user:
         await safe_edit_message(
             query,
@@ -2985,7 +2985,7 @@ def get_regional_proximity(city1, city2):
 
 async def start_browsing_unfiltered_profiles(query, context, user_id):
     """Start browsing ALL profiles without gender filtering but with smart prioritization"""
-    current_user = db.get(User.user_id == user_id)
+    current_user = db.get_user(user_id)
     
     # Get all users except current user
     all_users = db.all()
@@ -3086,7 +3086,7 @@ async def start_browsing_unfiltered_profiles(query, context, user_id):
     logger.info(f"Found {len(scored_profiles)} available profiles for user {user_id} (unfiltered)")
 
     if not scored_profiles:
-        user = db.get(User.user_id == user_id)
+        user = db.get_user(user_id)
         lang = user.get('lang', 'ru') if user else 'ru'
         
         if lang == 'en':
@@ -3124,7 +3124,7 @@ async def start_browsing_unfiltered_profiles(query, context, user_id):
 
 async def start_browsing_profiles(query, context, user_id):
     """Start browsing profiles with improved matching logic and graceful fallbacks"""
-    current_user = db.get(User.user_id == user_id)
+    current_user = db.get_user(user_id)
     
     # Get all users except current user
     all_users = db.all()
@@ -3323,7 +3323,7 @@ async def start_browsing_profiles(query, context, user_id):
 
 async def show_filter_options(query, context, user_id):
     """Show filter options for browsing"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
     current_interest = user.get('interest', 'both')
     
@@ -3369,7 +3369,7 @@ async def apply_interest_filter(query, context, user_id):
 
 async def show_profile_card(query, context, user_id, profile):
     """Show a profile card with navigation matching the desired interface"""
-    current_user = db.get(User.user_id == user_id)
+    current_user = db.get_user(user_id)
     
     profile_text = f"👤 *{profile['name']}*, {profile['age']} лет\n"
     
@@ -3598,7 +3598,7 @@ async def show_next_profile_as_new_message(query, context, user_id):
         mock_query = MockQuery(query)
         await show_profile_card(mock_query, context, user_id, next_profile)
     else:
-        user = db.get(User.user_id == user_id)
+        user = db.get_user(user_id)
         lang = user.get('lang', 'ru') if user else 'ru'
         
         no_more_text = "Больше нет анкет для просмотра" if lang == 'ru' else "No more profiles to browse"
@@ -3651,7 +3651,7 @@ async def start_change_name(query, context, user_id):
     """Start name change process"""
     context.user_data['changing_name'] = True
 
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     current_lang = user.get('lang', 'ru') if user else 'ru'
 
     if current_lang == 'en':
@@ -3686,7 +3686,7 @@ async def start_change_city(query, context, user_id):
     """Start city change process"""
     context.user_data['changing_city'] = True
 
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     current_lang = user.get('lang', 'ru') if user else 'ru'
 
     if current_lang == 'en':
@@ -3719,7 +3719,7 @@ async def start_change_city(query, context, user_id):
 # Placeholder functions for unimplemented features
 async def show_my_likes_direct(query, context, user_id):
     """Show likes management - incoming likes and mutual matches"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     if not user:
         return
 
@@ -3733,7 +3733,7 @@ async def show_my_likes_direct(query, context, user_id):
     mutual_matches = []
     for like_id in received_likes:
         if like_id in sent_likes and like_id not in declined_likes:
-            matched_user = db.get(User.user_id == like_id)
+            matched_user = db.get_user(like_id)
             if matched_user and is_profile_complete(matched_user):
                 mutual_matches.append(matched_user)
                 logger.info(f"Found mutual match with user {like_id}: {matched_user.get('name', 'Unknown')}")
@@ -3742,7 +3742,7 @@ async def show_my_likes_direct(query, context, user_id):
     incoming_likes = []
     for like_id in received_likes:
         if like_id not in sent_likes and like_id not in declined_likes:
-            liked_user = db.get(User.user_id == like_id)
+            liked_user = db.get_user(like_id)
             if liked_user and is_profile_complete(liked_user):
                 incoming_likes.append(liked_user)
                 logger.info(f"Found incoming like from user {like_id}: {liked_user.get('name', 'Unknown')}")
@@ -3891,7 +3891,7 @@ async def show_incoming_likes_browse(query, context, user_id):
 async def show_incoming_like_card(query, context, user_id, profile):
     """Show incoming like profile card with like/pass buttons"""
     try:
-        current_user = db.get(User.user_id == user_id)
+        current_user = db.get_user(user_id)
         
         profile_text = f"💕 Вам нравится!\n\n"
         profile_text += f"👤 *{profile['name']}*, {profile['age']} лет\n"
@@ -4003,7 +4003,7 @@ async def show_incoming_like_card(query, context, user_id, profile):
 
 async def show_profile_settings_menu(query, user_id):
     """Show profile settings menu"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     current_lang = user.get('lang', 'ru') if user else 'ru'
     current_city = user.get('city', 'Не указан') if user else 'Не указан'
 
@@ -4037,7 +4037,7 @@ async def show_profile_settings_menu(query, user_id):
 
 async def show_settings_menu(query, user_id):
     """Show settings menu"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     if not user:
         return
 
@@ -4089,7 +4089,7 @@ async def show_feedback_menu(query, user_id):
 
 async def show_statistics(query, user_id):
     """Show user statistics"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     if not user:
         return
 
@@ -4379,8 +4379,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if target_id:
             try:
-                sender = db.get(User.user_id == user_id)
-                target_user = db.get(User.user_id == target_id)
+                sender = db.get_user(user_id)
+                target_user = db.get_user(target_id)
                 
                 if not sender or not target_user:
                     await update.message.reply_text("❌ Ошибка: пользователь не найден")
@@ -4438,8 +4438,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if target_id:
             try:
-                sender = db.get(User.user_id == user_id)
-                target_user = db.get(User.user_id == target_id)
+                sender = db.get_user(user_id)
+                target_user = db.get_user(target_id)
                 
                 if not sender or not target_user:
                     await update.message.reply_text("❌ Ошибка: пользователь не найден")
@@ -4521,7 +4521,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if target_id:
                 try:
                     # Send video note to target user
-                    sender = db.get(User.user_id == user_id)
+                    sender = db.get_user(user_id)
                     sender_name = sender.get('name', 'Неизвестный') if sender else 'Неизвестный'
 
                     await context.bot.send_message(
@@ -4554,7 +4554,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if target_id and message_text not in ["❌ Отмена", "❌ Cancel"]:
                 try:
-                    sender = db.get(User.user_id == user_id)
+                    sender = db.get_user(user_id)
                     sender_name = sender.get('name', 'Неизвестный') if sender else 'Неизвестный'
 
                     await context.bot.send_message(
@@ -4615,7 +4615,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Check if user has profile
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     if not user:
         await update.message.reply_text(
             "👋 Привет! Отправьте /start чтобы начать знакомство!"
@@ -4663,7 +4663,7 @@ async def show_language_command(update: Update, context: ContextTypes.DEFAULT_TY
 async def show_help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /help command"""
     user_id = update.effective_user.id
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
     
     if lang == 'en':
@@ -4718,7 +4718,7 @@ async def debug_profiles(update: Update, context: ContextTypes.DEFAULT_TYPE):
     debug_text = f"🔍 Debug Info:\n\n"
     debug_text += f"Total users in database: {len(all_users)}\n\n"
     
-    current_user = db.get(User.user_id == user_id)
+    current_user = db.get_user(user_id)
     if current_user:
         debug_text += f"Your profile:\n"
         debug_text += f"- Complete: {is_profile_complete(current_user)}\n"
@@ -4739,7 +4739,7 @@ async def debug_profiles(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_nd_traits_menu(query, user_id):
     """Show neurodivergent traits management menu"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     if not user:
         return
 
@@ -4789,7 +4789,7 @@ async def toggle_registration_trait(query, context, user_id, trait_key):
     context.user_data["selected_nd_traits"] = current_traits
     
     # Update the interface immediately with new selection state
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
 
     text = "🧠 Выберите ваши нейроотличности:\n\n"
@@ -4857,7 +4857,7 @@ async def toggle_registration_symptom(query, context, user_id, symptom_key):
 
 async def show_registration_nd_symptoms(query, context, user_id):
     """Show ND symptoms selection during registration"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
 
     text = "🔍 Выберите характеристики, которые вас описывают:\n\n"
@@ -4919,7 +4919,7 @@ async def finish_nd_registration(query, context, user_id):
 
 async def toggle_nd_trait(query, user_id, trait_key):
     """Toggle ND trait selection for existing user"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     if not user:
         return
 
@@ -4939,7 +4939,7 @@ async def toggle_nd_trait(query, user_id, trait_key):
 
 async def toggle_nd_symptom(query, user_id, symptom_key):
     """Toggle ND symptom selection for existing user"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     if not user:
         return
 
@@ -4959,7 +4959,7 @@ async def toggle_nd_symptom(query, user_id, symptom_key):
 
 async def show_add_traits_menu(query, user_id):
     """Show trait selection menu for existing user"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     if not user:
         return
 
@@ -5000,7 +5000,7 @@ async def show_add_traits_menu(query, user_id):
 
 async def show_detailed_symptoms_menu(query, user_id):
     """Show detailed symptoms menu for existing user"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     if not user:
         return
 
@@ -5055,7 +5055,7 @@ async def show_nd_search_menu(query, user_id):
 
 async def search_by_traits(query, context, user_id):
     """Search users by similar traits"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     if not user:
         return
 
@@ -5110,7 +5110,7 @@ async def show_nd_result(query, context, user_id, result_tuple):
     """Show ND search result"""
     other_user, similarity_score, common_traits = result_tuple
 
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
 
     profile_text = f"👤 *{other_user['name']}*, {other_user['age']} лет\n"
@@ -5169,7 +5169,7 @@ async def show_next_nd_result(query, context, user_id):
 
 async def compatibility_search(query, context, user_id):
     """Advanced compatibility search based on traits and symptoms"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     if not user:
         return
 
@@ -5237,7 +5237,7 @@ async def compatibility_search(query, context, user_id):
 
 async def show_recommendations(query, context, user_id):
     """Show personalized recommendations based on user's profile and activity"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     if not user:
         return
 
@@ -5378,7 +5378,7 @@ async def show_compatibility_result(query, context, user_id, result_tuple):
     """Show compatibility search result"""
     other_user, compatibility_score, common_traits, common_symptoms = result_tuple
 
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
 
     profile_text = f"👤 *{other_user['name']}*, {other_user['age']} лет\n"
@@ -5465,7 +5465,7 @@ async def start_message_to_user(query, context, user_id, target_id):
     context.user_data['sending_message'] = True
     context.user_data['message_target_id'] = target_id
 
-    target_user = db.get(User.user_id == target_id)
+    target_user = db.get_user(target_id)
     target_name = target_user.get('name', 'Пользователь') if target_user else 'Пользователь'
 
     try:
@@ -5488,7 +5488,7 @@ async def start_video_to_user(query, context, user_id, target_id):
     context.user_data['sending_video'] = True
     context.user_data['video_target_id'] = target_id
 
-    target_user = db.get(User.user_id == target_id)
+    target_user = db.get_user(target_id)
     target_name = target_user.get('name', 'Пользователь') if target_user else 'Пользователь'
 
     try:
@@ -5678,7 +5678,7 @@ async def confirm_recreate_profile(query, user_id):
 
 async def confirm_reset_matches(query, user_id):
     """Confirm match reset"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     current_lang = user.get('lang', 'ru') if user else 'ru'
     
     if current_lang == 'en':
@@ -5714,7 +5714,7 @@ async def confirm_reset_matches(query, user_id):
 
 async def reset_user_matches(query, user_id):
     """Reset user's match history"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     current_lang = user.get('lang', 'ru') if user else 'ru'
     
     # Clear all match-related data
@@ -5784,7 +5784,7 @@ async def show_next_recommendation_result(query, context, user_id):
 
 async def continue_profile_creation(query, context, user_id):
     """Continue profile creation by guiding user to use /start"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     if not user:
         await query.edit_message_text(
             get_text(user_id, "profile_not_found"),
@@ -5821,7 +5821,7 @@ async def continue_profile_creation(query, context, user_id):
 
 async def show_detailed_stats(query, user_id):
     """Show detailed statistics"""
-    user = db.get(User.user_id == user_id)
+    user = db.get_user(user_id)
     if not user:
         return
 
@@ -6089,7 +6089,7 @@ async def send_mutual_match_notification(user_id, application, matched_user):
 async def send_message_with_profile(bot, target_id, sender, message_text, is_match=False):
     """Send message with sender's profile for easy like-back"""
     try:
-        target_user = db.get(User.user_id == target_id)
+        target_user = db.get_user(target_id)
         if not target_user:
             return
 
@@ -6771,7 +6771,7 @@ async def show_detailed_match_profile(query, user_id, target_id):
 async def send_browsing_interruption(user_id, application):
     """Send special notification if user is currently browsing profiles"""
     try:
-        user = db.get(User.user_id == user_id)
+        user = db.get_user(user_id)
         if not user:
             return
 
