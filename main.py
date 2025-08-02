@@ -6985,6 +6985,7 @@ def main():
                 MessageHandler(filters.PHOTO, handle_photo),
                 MessageHandler(filters.VIDEO, handle_photo),
                 MessageHandler(filters.VIDEO_NOTE, handle_photo),
+                MessageHandler(filters.ANIMATION, handle_photo),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_photo)
             ],
             WAITING_NAME: [
