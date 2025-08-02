@@ -2205,15 +2205,19 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.error(f"Error parsing like_back callback data '{data}': {e}")
                 await query.answer("❌ Ошибка обработки.")
                 return
+        elif data.startswith("like_incoming_"):
+            # Handle incoming like callbacks - like someone back
+            try:
+                profile_id = int(data.split("_")[2])
+                await handle_like_back(query, context, user_id, profile_id)
+            except (ValueError, IndexError) as e:
+                logger.error(f"Error parsing like_incoming callback data '{data}': {e}")
+                await query.answer("❌ Ошибка обработки. Попробуйте еще раз.")
+                return
         elif data.startswith("like_"):
             try:
-                # Handle different like callback formats
-                if data.startswith("like_incoming_"):
-                    # Format: like_incoming_410177871
-                    profile_id = int(data.split("_")[2])
-                else:
-                    # Format: like_410177871  
-                    profile_id = int(data.split("_")[1])
+                # Format: like_410177871  
+                profile_id = int(data.split("_")[1])
                 await handle_like_profile(query, context, user_id, profile_id)
             except (ValueError, IndexError) as e:
                 logger.error(f"Error parsing like callback data '{data}': {e}")
