@@ -2657,7 +2657,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(success_text)
             
             # If user has no profile data, start profile creation
-            if not is_profile_complete(user):
+            if not is_profile_complete_dict(user):
                 await asyncio.sleep(1)  # Brief pause
                 welcome_text = get_text(user_id, "welcome")
                 age_text = get_text(user_id, "questionnaire_age")
@@ -2726,7 +2726,7 @@ async def show_user_profile(query, user_id):
         return
     
     # Check profile completion with detailed logging
-    is_complete = is_profile_complete(user)
+    is_complete = is_profile_complete_dict(user)
     logger.info(f"Profile completion check for user {user_id}: {is_complete}")
     logger.info(f"User data: name={user.get('name')}, age={user.get('age')}, photos={len(user.get('photos', []))}, media_id={bool(user.get('media_id'))}")
     
@@ -2854,7 +2854,7 @@ async def browse_profiles(query, context, user_id):
         )
         return
     
-    if not is_profile_complete(current_user):
+    if not is_profile_complete_dict(current_user):
         await safe_edit_message(
             query,
             "⚠️ Для просмотра анкет других пользователей рекомендуется завершить свой профиль.\n\nВы можете продолжить заполнение профиля или попробовать просматривать анкеты сейчас.",
@@ -3734,7 +3734,7 @@ async def show_my_likes_direct(query, context, user_id):
     for like_id in received_likes:
         if like_id in sent_likes and like_id not in declined_likes:
             matched_user = db.get_user(like_id)
-            if matched_user and is_profile_complete(matched_user):
+            if matched_user and is_profile_complete_dict(matched_user):
                 mutual_matches.append(matched_user)
                 logger.info(f"Found mutual match with user {like_id}: {matched_user.get('name', 'Unknown')}")
 
@@ -3743,7 +3743,7 @@ async def show_my_likes_direct(query, context, user_id):
     for like_id in received_likes:
         if like_id not in sent_likes and like_id not in declined_likes:
             liked_user = db.get_user(like_id)
-            if liked_user and is_profile_complete(liked_user):
+            if liked_user and is_profile_complete_dict(liked_user):
                 incoming_likes.append(liked_user)
                 logger.info(f"Found incoming like from user {like_id}: {liked_user.get('name', 'Unknown')}")
 
@@ -4721,14 +4721,14 @@ async def debug_profiles(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_user = db.get_user(user_id)
     if current_user:
         debug_text += f"Your profile:\n"
-        debug_text += f"- Complete: {is_profile_complete(current_user)}\n"
+        debug_text += f"- Complete: {is_profile_complete_dict(current_user)}\n"
         debug_text += f"- Gender: {current_user.get('gender', 'None')}\n"
         debug_text += f"- Interest: {current_user.get('interest', 'None')}\n"
         debug_text += f"- Sent likes: {len(current_user.get('sent_likes', []))}\n\n"
     
     complete_profiles = 0
     for user in all_users:
-        if user['user_id'] != user_id and is_profile_complete(user):
+        if user['user_id'] != user_id and is_profile_complete_dict(user):
             complete_profiles += 1
     
     debug_text += f"Other complete profiles: {complete_profiles}\n"
@@ -5076,7 +5076,7 @@ async def search_by_traits(query, context, user_id):
 
     for other_user in all_users:
         if (other_user['user_id'] != user_id and 
-            is_profile_complete(other_user) and
+            is_profile_complete_dict(other_user) and
             matches_interest_criteria(user, other_user) and
             other_user['user_id'] not in user.get('sent_likes', [])):
 
@@ -5192,7 +5192,7 @@ async def compatibility_search(query, context, user_id):
 
     for other_user in all_users:
         if (other_user['user_id'] != user_id and 
-            is_profile_complete(other_user) and
+            is_profile_complete_dict(other_user) and
             matches_interest_criteria(user, other_user) and
             other_user['user_id'] not in user.get('sent_likes', [])):
 
@@ -5252,7 +5252,7 @@ async def show_recommendations(query, context, user_id):
 
     for other_user in all_users:
         if (other_user['user_id'] != user_id and 
-            is_profile_complete(other_user) and
+            is_profile_complete_dict(other_user) and
             matches_interest_criteria(user, other_user) and
             other_user['user_id'] not in user_sent_likes):
 
