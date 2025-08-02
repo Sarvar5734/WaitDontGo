@@ -11,12 +11,6 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from models import User, Feedback, AISession, engine, SessionLocal, create_tables
-try:
-    from tinydb import TinyDB, Query
-except ImportError:
-    # TinyDB not available, migration will be skipped
-    TinyDB = None
-    Query = None
 
 logger = logging.getLogger(__name__)
 
@@ -29,108 +23,7 @@ class DatabaseManager:
         """Get database session"""
         return SessionLocal()
     
-    def migrate_from_tinydb(self, tinydb_path: str = "db.json", feedback_path: str = "feedback.json") -> bool:
-        """Migrate data from TinyDB to PostgreSQL"""
-        if TinyDB is None:
-            logger.warning("TinyDB not available, skipping migration")
-            return True
-            
-        try:
-            # Check if files exist
-            import os
-            if not os.path.exists(tinydb_path):
-                logger.info("TinyDB file not found, skipping migration")
-                return True
-                
-            # Load TinyDB data
-            tiny_db = TinyDB(tinydb_path)
-            feedback_db = TinyDB(feedback_path) if os.path.exists(feedback_path) else None
-            
-            session = self.get_session()
-            
-            # Migrate users
-            users_data = tiny_db.all()
-            migrated_users = 0
-            
-            for user_data in users_data:
-                # Check if user already exists
-                existing_user = session.query(User).filter(User.user_id == user_data.get('user_id')).first()
-                if existing_user:
-                    logger.info(f"User {user_data.get('user_id')} already exists, skipping")
-                    continue
-                
-                # Create new user
-                user = User(
-                    user_id=user_data.get('user_id'),
-                    lang=user_data.get('lang', 'ru'),
-                    username=user_data.get('username'),
-                    first_name=user_data.get('first_name'),
-                    name=user_data.get('name'),
-                    age=user_data.get('age'),
-                    gender=user_data.get('gender'),
-                    interest=user_data.get('interest'),
-                    city=user_data.get('city'),
-                    bio=user_data.get('bio'),
-                    photos=user_data.get('photos', []),
-                    photo_id=user_data.get('photo_id'),
-                    media_type=user_data.get('media_type', 'photo'),
-                    media_id=user_data.get('media_id'),
-                    latitude=user_data.get('latitude'),
-                    longitude=user_data.get('longitude'),
-                    nd_traits=user_data.get('nd_traits', []),
-                    nd_symptoms=user_data.get('nd_symptoms', []),
-                    seeking_traits=user_data.get('seeking_traits', []),
-                    likes=user_data.get('likes', []),
-                    sent_likes=user_data.get('sent_likes', []),
-                    received_likes=user_data.get('received_likes', []),
-                    unnotified_likes=user_data.get('unnotified_likes', []),
-                    declined_likes=user_data.get('declined_likes', []),
-                    ratings=user_data.get('ratings', []),
-                    total_rating=user_data.get('total_rating', 0.0),
-                    rating_count=user_data.get('rating_count', 0),
-                    created_at=datetime.fromisoformat(user_data.get('created_at', datetime.utcnow().isoformat())),
-                    last_active=datetime.utcnow()
-                )
-                
-                session.add(user)
-                migrated_users += 1
-                logger.info(f"Migrated user: {user_data.get('name')} ({user_data.get('user_id')})")
-            
-            # Migrate feedback
-            migrated_feedback = 0
-            if feedback_db:
-                feedback_data = feedback_db.all()
-                
-                for feedback_item in feedback_data:
-                    existing_feedback = session.query(Feedback).filter(
-                    and_(
-                        Feedback.user_id == feedback_item.get('user_id'),
-                        Feedback.message == feedback_item.get('message')
-                    )
-                    ).first()
-                    
-                    if existing_feedback:
-                        continue
-                        
-                    feedback = Feedback(
-                    user_id=feedback_item.get('user_id'),
-                    message=feedback_item.get('message'),
-                    created_at=datetime.fromisoformat(feedback_item.get('created_at', datetime.utcnow().isoformat())),
-                        resolved=feedback_item.get('resolved', False)
-                    )
-                
-                    session.add(feedback)
-                    migrated_feedback += 1
-            
-            session.commit()
-            session.close()
-            
-            logger.info(f"Migration completed: {migrated_users} users, {migrated_feedback} feedback items")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Migration failed: {e}")
-            return False
+
     
     def get_user(self, user_id: int) -> Optional[User]:
         """Get user by Telegram user ID"""

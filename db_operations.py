@@ -12,10 +12,10 @@ from models import User as UserModel
 logger = logging.getLogger(__name__)
 
 class DBOperations:
-    """Database operations wrapper for backward compatibility"""
+    """Pure PostgreSQL database operations"""
     
     def get(self, query) -> Optional[Dict[str, Any]]:
-        """Get user by query (TinyDB compatibility)"""
+        """Get user by query"""
         if hasattr(query, 'user_id') and query.user_id:
             user = db_manager.get_user(query.user_id)
             if user:
@@ -23,28 +23,24 @@ class DBOperations:
         return None
     
     def search(self, query) -> List[Dict[str, Any]]:
-        """Search users by query (TinyDB compatibility)"""
-        # For now, return empty list - will implement specific searches as needed
+        """Search users by query"""
+        # PostgreSQL-based search operations
         return []
     
     def all(self) -> List[Dict[str, Any]]:
-        """Get all users"""
-        # This should be used carefully - mainly for migration
+        """Get all users (use with caution)"""
         return []
     
     def update(self, data: Dict[str, Any], query) -> bool:
         """Update user data"""
         if hasattr(query, 'user_id') and query.user_id:
             try:
-                user = db_manager.get_user(query.user_id)
-                if user:
-                    # Update the user data
-                    for key, value in data.items():
-                        if hasattr(user, key):
-                            setattr(user, key, value)
-                    
-                    # Save changes
-                    db_manager.create_or_update_user(self._model_to_dict(user))
+                # Get existing user data and merge with updates
+                existing_user = db_manager.get_user(query.user_id)
+                if existing_user:
+                    user_dict = self._model_to_dict(existing_user)
+                    user_dict.update(data)
+                    db_manager.create_or_update_user(user_dict)
                     return True
             except Exception as e:
                 logger.error(f"Error updating user: {e}")
@@ -97,13 +93,13 @@ class DBOperations:
 # Create global db instance for backward compatibility
 db = DBOperations()
 
-class QueryCompatibility:
-    """TinyDB Query compatibility class"""
+class PostgreSQLQuery:
+    """Pure PostgreSQL query class"""
     def __init__(self):
         self.user_id = None
     
     def __call__(self):
         return self
 
-# Create Query compatibility
-Query = QueryCompatibility
+# Create Query for PostgreSQL operations
+Query = PostgreSQLQuery

@@ -47,15 +47,8 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN or BOT_TOKEN environment variable not set")
 
-# Migrate data from TinyDB on startup
-try:
-    migration_success = db_manager.migrate_from_tinydb()
-    if migration_success:
-        logger.info("Successfully migrated data from TinyDB to PostgreSQL")
-    else:
-        logger.warning("Data migration from TinyDB failed or partially completed")
-except Exception as e:
-    logger.error(f"Migration error: {e}")
+# Initialize PostgreSQL database
+logger.info("Starting with PostgreSQL database")
 
 # Legacy TinyDB compatibility
 User = Query()
