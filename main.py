@@ -2219,16 +2219,19 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.error(f"Error parsing like callback data '{data}': {e}")
                 await query.answer("❌ Ошибка обработки. Попробуйте еще раз.")
                 return
+        elif data.startswith("pass_incoming_"):
+            # Handle incoming pass callbacks first - more specific match
+            try:
+                profile_id = int(data.split("_")[2])
+                await handle_decline_like(query, user_id, profile_id)
+            except (ValueError, IndexError) as e:
+                logger.error(f"Error parsing pass_incoming callback data '{data}': {e}")
+                await query.answer("❌ Ошибка обработки. Попробуйте еще раз.")
+                return
         elif data.startswith("pass_"):
             try:
-                # Handle different pass callback formats
-                if data.startswith("pass_incoming_"):
-                    # Format: pass_incoming_410177871
-                    profile_id = int(data.split("_")[2])
-                    await handle_decline_like(query, user_id, profile_id)
-                else:
-                    # Format: pass_410177871
-                    await handle_pass_profile(query, context, user_id)
+                # Format: pass_410177871
+                await handle_pass_profile(query, context, user_id)
             except (ValueError, IndexError) as e:
                 logger.error(f"Error parsing pass callback data '{data}': {e}")
                 await query.answer("❌ Ошибка обработки. Попробуйте еще раз.")
@@ -2290,6 +2293,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
 
 
+        elif data == "view_mutual_matches":
+            await show_mutual_matches(query, context, user_id)
+        elif data == "view_incoming_likes":
+            await show_incoming_likes_browse(query, context, user_id)
+        elif data == "prev_mutual_match":
+            await navigate_mutual_matches(query, context, user_id, -1)
+        elif data == "next_mutual_match":
+            await navigate_mutual_matches(query, context, user_id, 1)
         elif data == "manage_symptoms":
             await show_nd_traits_menu(query, user_id)
         elif data == "manage_symptoms_detailed":
@@ -3567,7 +3578,7 @@ async def start_change_city(query, context, user_id):
 
 # Placeholder functions for unimplemented features
 async def show_my_likes_direct(query, context, user_id):
-    """Show incoming likes directly as browsable profiles"""
+    """Show likes management - incoming likes and mutual matches"""
     user = db.get(User.user_id == user_id)
     if not user:
         return
@@ -3578,7 +3589,16 @@ async def show_my_likes_direct(query, context, user_id):
 
     logger.info(f"Debug my_likes for user {user_id}: received={len(received_likes)}, sent={len(sent_likes)}, declined={len(declined_likes)}")
 
-    # Find incoming likes (not yet responded to) - exclude declined
+    # Find mutual matches (people who liked each other)
+    mutual_matches = []
+    for like_id in received_likes:
+        if like_id in sent_likes and like_id not in declined_likes:
+            matched_user = db.get(User.user_id == like_id)
+            if matched_user and is_profile_complete(matched_user):
+                mutual_matches.append(matched_user)
+                logger.info(f"Found mutual match with user {like_id}: {matched_user.get('name', 'Unknown')}")
+
+    # Find incoming likes (not yet responded to) - exclude declined and already matched
     incoming_likes = []
     for like_id in received_likes:
         if like_id not in sent_likes and like_id not in declined_likes:
@@ -3587,9 +3607,28 @@ async def show_my_likes_direct(query, context, user_id):
                 incoming_likes.append(liked_user)
                 logger.info(f"Found incoming like from user {like_id}: {liked_user.get('name', 'Unknown')}")
 
+    logger.info(f"Total mutual matches found: {len(mutual_matches)}")
     logger.info(f"Total incoming likes found: {len(incoming_likes)}")
 
-    if not incoming_likes:
+    # Show options menu
+    if mutual_matches or incoming_likes:
+        buttons = []
+        if mutual_matches:
+            buttons.append([InlineKeyboardButton(f"💝 Взаимные лайки ({len(mutual_matches)})", callback_data="view_mutual_matches")])
+        if incoming_likes:
+            buttons.append([InlineKeyboardButton(f"💌 Входящие лайки ({len(incoming_likes)})", callback_data="view_incoming_likes")])
+        buttons.append([InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")])
+
+        await safe_edit_message(
+            query,
+            "💕 Ваши лайки:\n\nВыберите что хотите посмотреть:",
+            InlineKeyboardMarkup(buttons)
+        )
+        
+        # Store data for viewing
+        context.user_data['mutual_matches'] = mutual_matches
+        context.user_data['browsing_incoming_likes'] = incoming_likes
+    else:
         await safe_edit_message(
             query,
             "Пока нет новых лайков.",
@@ -3597,13 +3636,114 @@ async def show_my_likes_direct(query, context, user_id):
                 InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")
             ]])
         )
-        return
 
-    # Set up browsing context for incoming likes
-    context.user_data['browsing_incoming_likes'] = incoming_likes
-    context.user_data['current_incoming_index'] = 0
+async def show_mutual_matches(query, context, user_id):
+    """Show mutual matches as browsable profiles"""
+    mutual_matches = context.user_data.get('mutual_matches', [])
+    if not mutual_matches:
+        await safe_edit_message(
+            query,
+            "Нет взаимных лайков.",
+            InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 К лайкам", callback_data="my_likes")
+            ]])
+        )
+        return
     
-    logger.info(f"Showing first incoming like profile for user {user_id}")
+    # Set up browsing for mutual matches
+    context.user_data['browsing_mutual_matches'] = mutual_matches
+    context.user_data['current_mutual_index'] = 0
+    
+    # Show first mutual match
+    await show_mutual_match_card(query, context, user_id, mutual_matches[0])
+
+async def show_mutual_match_card(query, context, user_id, profile):
+    """Show mutual match profile with contact info"""
+    try:
+        profile_name = profile.get('name', 'Пользователь')
+        profile_username = profile.get('username', '')
+        
+        # Create hyperlinked name if username exists
+        if profile_username:
+            profile_text = f"💝 Взаимный лайк!\n\n👤 [{profile_name}](https://t.me/{profile_username}), {profile.get('age', '?')} лет\n"
+        else:
+            profile_text = f"💝 Взаимный лайк!\n\n👤 *{profile_name}*, {profile.get('age', '?')} лет\n"
+        
+        profile_text += f"📍 *{profile.get('city', 'Неизвестно')}*\n"
+        
+        # Add ND traits
+        nd_traits = profile.get('nd_traits', [])
+        if nd_traits:
+            traits_dict = ND_TRAITS.get('ru', ND_TRAITS['ru'])
+            trait_names = [traits_dict.get(trait, trait) for trait in nd_traits if trait in traits_dict and trait != 'none']
+            if trait_names:
+                profile_text += f"🧠 Нейроотличия: *{', '.join(trait_names)}*\n"
+        
+        profile_text += f"\n💭 {profile.get('bio', '')}\n"
+        profile_text += f"\n✨ Свяжитесь друг с другом напрямую в Telegram!"
+
+        # Navigation buttons
+        current_index = context.user_data.get('current_mutual_index', 0)
+        total_matches = len(context.user_data.get('browsing_mutual_matches', []))
+        
+        keyboard = []
+        nav_row = []
+        if current_index > 0:
+            nav_row.append(InlineKeyboardButton("⬅️ Пред", callback_data="prev_mutual_match"))
+        if current_index < total_matches - 1:
+            nav_row.append(InlineKeyboardButton("След ➡️", callback_data="next_mutual_match"))
+        if nav_row:
+            keyboard.append(nav_row)
+        
+        keyboard.append([InlineKeyboardButton("🔙 К лайкам", callback_data="my_likes")])
+
+        # Send with photo if available
+        photos = profile.get('photos', [])
+        if photos:
+            try:
+                await query.message.reply_photo(
+                    photo=photos[0],
+                    caption=profile_text,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode='Markdown'
+                )
+                await query.delete_message()
+            except Exception:
+                await safe_edit_message(query, profile_text, InlineKeyboardMarkup(keyboard))
+        else:
+            await safe_edit_message(query, profile_text, InlineKeyboardMarkup(keyboard))
+            
+    except Exception as e:
+        logger.error(f"Error showing mutual match card: {e}")
+
+async def navigate_mutual_matches(query, context, user_id, direction):
+    """Navigate through mutual matches"""
+    try:
+        mutual_matches = context.user_data.get('browsing_mutual_matches', [])
+        current_index = context.user_data.get('current_mutual_index', 0)
+        
+        new_index = current_index + direction
+        if 0 <= new_index < len(mutual_matches):
+            context.user_data['current_mutual_index'] = new_index
+            await show_mutual_match_card(query, context, user_id, mutual_matches[new_index])
+    except Exception as e:
+        logger.error(f"Error navigating mutual matches: {e}")
+
+async def show_incoming_likes_browse(query, context, user_id):
+    """Show incoming likes as browsable profiles"""
+    incoming_likes = context.user_data.get('browsing_incoming_likes', [])
+    if not incoming_likes:
+        await safe_edit_message(
+            query,
+            "Нет входящих лайков.",
+            InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 К лайкам", callback_data="my_likes")
+            ]])
+        )
+        return
+    
+    # Set up browsing context for incoming likes
+    context.user_data['current_incoming_index'] = 0
     
     # Show first incoming like profile
     await show_incoming_like_card(query, context, user_id, incoming_likes[0])
