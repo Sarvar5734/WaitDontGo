@@ -378,6 +378,15 @@ TEXTS = {
         "nd_selected_count": "Selected:",
         "selecting_traits": "Selecting traits...",
         "default_bio_skip": "Will tell about myself later",
+        "back_to_main_menu": "🔙 Back to main menu",
+        "back_button": "🔙 Back",
+        "btn_save": "💾 Save",
+        "btn_skip_all": "⏭️ Skip all",
+        "btn_done": "✅ Done",
+        "btn_skip_remaining": "⏭️ Skip remaining",
+        "use_gps": "📍 Use GPS",
+        "manual_entry": "✍️ Manual entry",
+        "share_gps": "📍 Share GPS location",
         "max_traits_reached": "❌ Можно выбрать максимум 3 особенности",
         "max_characteristics_reached": "❌ Можно выбрать максимум 3 характеристики",
         "function_in_development": "Функция в разработке",
@@ -395,7 +404,15 @@ TEXTS = {
         "nd_selection_prompt": "🧠 Выберите ваши нейроотличности:\n\nЭто поможет найти людей с похожим опытом!\nМожно выбрать до 3 особенностей.",
         "nd_selected_count": "Выбрано:",
         "selecting_traits": "Выбор особенностей...",
-        "default_bio_skip": "Расскажу о себе позже"
+        "default_bio_skip": "Расскажу о себе позже",
+        "back_to_main_menu": "🔙 Назад к главному меню",
+        "back_button": "🔙 Назад",
+        "btn_save": "💾 Сохранить", 
+        "btn_skip_all": "⏭️ Пропустить всё",
+        "btn_done": "✅ Готово",
+        "btn_skip_remaining": "⏭️ Пропустить остальные",
+        "use_gps": "📍 Использовать GPS",
+        "manual_entry": "✍️ Ввести вручную"
     },
     "en": {
         "welcome": "🧠 Welcome to Alt3r!\n\nThis is a dating bot for neurodivergent people. Here you can find understanding, support and real connections with those who share your experience.\n\n✨ Let's create your profile!",
@@ -1433,7 +1450,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         
         # Continue from where they left off
         if not existing_user.get('age'):
-            keyboard = [[KeyboardButton("🔙 Назад к главному меню")]]
+            keyboard = [[KeyboardButton(get_text(user_id, "back_to_main_menu"))]]
             reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
             await update.message.reply_text(get_text(user_id, "questionnaire_age"), reply_markup=reply_markup)
             return AGE
@@ -1441,7 +1458,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             keyboard = [
                 [KeyboardButton(get_text(user_id, "btn_girl"))],
                 [KeyboardButton(get_text(user_id, "btn_boy"))],
-                [KeyboardButton("🔙 Назад")]
+                [KeyboardButton(get_text(user_id, "back_button"))]
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
             await update.message.reply_text(get_text(user_id, "questionnaire_gender"), reply_markup=reply_markup)
@@ -1451,29 +1468,29 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                 [KeyboardButton(get_text(user_id, "btn_girls"))],
                 [KeyboardButton(get_text(user_id, "btn_boys"))],
                 [KeyboardButton(get_text(user_id, "btn_all"))],
-                [KeyboardButton("🔙 Назад")]
+                [KeyboardButton(get_text(user_id, "back_button"))]
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
             await update.message.reply_text(get_text(user_id, "questionnaire_interest"), reply_markup=reply_markup)
             return INTEREST
         elif not existing_user.get('city'):
             keyboard = [
-                [KeyboardButton("📍 Поделиться геолокацией", request_location=True)],
-                [KeyboardButton("✍️ Ввести город вручную")],
-                [KeyboardButton("🔙 Назад")]
+                [KeyboardButton(get_text(user_id, "share_gps"), request_location=True)],
+                [KeyboardButton(get_text(user_id, "manual_entry"))],
+                [KeyboardButton(get_text(user_id, "back_button"))]
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
-            await update.message.reply_text("📍 Поделитесь вашим местоположением:\n\nВы можете поделиться GPS-локацией или ввести город вручную.", reply_markup=reply_markup)
+            await update.message.reply_text(get_text(user_id, "share_location"), reply_markup=reply_markup)
             return CITY
         elif not existing_user.get('name'):
-            keyboard = [[KeyboardButton("🔙 Назад")]]
+            keyboard = [[KeyboardButton(get_text(user_id, "back_button"))]]
             reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
             await update.message.reply_text(get_text(user_id, "questionnaire_name"), reply_markup=reply_markup)
             return NAME
         elif not existing_user.get('bio'):
             keyboard = [
-                [KeyboardButton("⏭️ Пропустить")],
-                [KeyboardButton("🔙 Назад")]
+                [KeyboardButton(get_text(user_id, "btn_skip"))],
+                [KeyboardButton(get_text(user_id, "back_button"))]
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
             await update.message.reply_text(get_text(user_id, "questionnaire_bio"), reply_markup=reply_markup)
@@ -1509,7 +1526,7 @@ async def handle_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     # Check if message exists and has text
     if not update.message or not update.message.text:
         try:
-            keyboard = [[KeyboardButton("🔙 Назад к главному меню")]]
+            keyboard = [[KeyboardButton(get_text(user_id, "back_to_main_menu"))]]
             reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
             await update.message.reply_text(get_text(user_id, "age_prompt_error"), reply_markup=reply_markup)
         except:
@@ -1533,7 +1550,7 @@ async def handle_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             return ConversationHandler.END
         
         if not age_text.isdigit():
-            keyboard = [[KeyboardButton("🔙 Назад к главному меню")]]
+            keyboard = [[KeyboardButton(get_text(user_id, "back_to_main_menu"))]]
             reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
             await update.message.reply_text(get_text(user_id, "age_prompt_error"), reply_markup=reply_markup)
             return AGE
@@ -1559,19 +1576,19 @@ async def handle_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             )
             return GENDER
         else:
-            keyboard = [[KeyboardButton("🔙 Назад к главному меню")]]
+            keyboard = [[KeyboardButton(get_text(user_id, "back_to_main_menu"))]]
             reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
             await update.message.reply_text(get_text(user_id, "age_range_error"), reply_markup=reply_markup)
             return AGE
     except (ValueError, AttributeError) as e:
         logger.error(f"Error handling age input: {e}")
-        keyboard = [[KeyboardButton("🔙 Назад к главному меню")]]
+        keyboard = [[KeyboardButton(get_text(user_id, "back_to_main_menu"))]]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text(get_text(user_id, "age_prompt_error"), reply_markup=reply_markup)
         return AGE
     except Exception as e:
         logger.error(f"Unexpected error in handle_age: {e}")
-        keyboard = [[KeyboardButton("🔙 Назад к главному меню")]]
+        keyboard = [[KeyboardButton(get_text(user_id, "back_to_main_menu"))]]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text(get_text(user_id, "error_occurred"), reply_markup=reply_markup)
         return AGE
@@ -1583,7 +1600,7 @@ async def handle_gender(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
     # Handle back button
     if gender_text in ["🔙 Назад", "🔙 Back"]:
-        keyboard = [[KeyboardButton("🔙 Назад к главному меню")]]
+        keyboard = [[KeyboardButton(get_text(user_id, "back_to_main_menu"))]]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text(
             get_text(user_id, "questionnaire_age"),
@@ -1603,7 +1620,7 @@ async def handle_gender(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         [KeyboardButton(get_text(user_id, "btn_girls"))],
         [KeyboardButton(get_text(user_id, "btn_boys"))],
         [KeyboardButton(get_text(user_id, "btn_all"))],
-        [KeyboardButton("🔙 Назад")]
+        [KeyboardButton(get_text(user_id, "back_button"))]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
 
@@ -1623,7 +1640,7 @@ async def handle_interest(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         keyboard = [
             [KeyboardButton(get_text(user_id, "btn_girl"))],
             [KeyboardButton(get_text(user_id, "btn_boy"))],
-            [KeyboardButton("🔙 Назад")]
+            [KeyboardButton(get_text(user_id, "back_button"))]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text(
@@ -1644,22 +1661,17 @@ async def handle_interest(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     # Ask for location with GPS option
     keyboard = [
-        [KeyboardButton("📍 Поделиться геолокацией", request_location=True)],
-        [KeyboardButton("✍️ Ввести город вручную")],
-        [KeyboardButton("🔙 Назад")]
+        [KeyboardButton(get_text(user_id, "share_gps"), request_location=True)],
+        [KeyboardButton(get_text(user_id, "manual_entry"))],
+        [KeyboardButton(get_text(user_id, "back_button"))]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
 
     user = db.get(User.user_id == user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
 
-    if lang == 'en':
-        location_text = "📍 Share your location:\n\nYou can either share your GPS location or enter your city manually."
-    else:
-        location_text = "📍 Поделитесь вашим местоположением:\n\nВы можете поделиться GPS-локацией или ввести город вручную."
-
     await update.message.reply_text(
-        location_text,
+        get_text(user_id, "share_location"),
         reply_markup=reply_markup
     )
     return CITY
@@ -1674,7 +1686,7 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             [KeyboardButton(get_text(user_id, "btn_girls"))],
             [KeyboardButton(get_text(user_id, "btn_boys"))],
             [KeyboardButton(get_text(user_id, "btn_all"))],
-            [KeyboardButton("🔙 Назад")]
+            [KeyboardButton(get_text(user_id, "back_button"))]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text(
@@ -1728,11 +1740,11 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
                 if lang == 'en':
                     error_msg = "❌ Couldn't determine your city from GPS. Please enter your city manually:"
                 else:
-                    error_msg = "❌ Не удалось определить город по GPS. Пожалуйста, введите город вручную:"
+                    error_msg = get_text(user_id, "gps_error")
 
                 keyboard = [
                     [KeyboardButton("📍 Попробовать еще раз" if lang == 'ru' else "📍 Try again", request_location=True)],
-                    [KeyboardButton("🔙 Назад")]
+                    [KeyboardButton(get_text(user_id, "back_button"))]
                 ]
                 reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
                 await update.message.reply_text(error_msg, reply_markup=reply_markup)
@@ -1751,7 +1763,7 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
             keyboard = [
                 [KeyboardButton("📍 Попробовать еще раз" if lang == 'ru' else "📍 Try again", request_location=True)],
-                [KeyboardButton("🔙 Назад")]
+                [KeyboardButton(get_text(user_id, "back_button"))]
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
             await update.message.reply_text(error_msg, reply_markup=reply_markup)
@@ -1765,11 +1777,11 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         if lang == 'en':
             manual_prompt = "📝 Please enter your city:"
         else:
-            manual_prompt = "📝 Пожалуйста, введите ваш город:"
+            manual_prompt = get_text(user_id, "enter_city_manual")
 
         keyboard = [
             [KeyboardButton("📍 Использовать GPS" if lang == 'ru' else "📍 Use GPS", request_location=True)],
-            [KeyboardButton("🔙 Назад")]
+            [KeyboardButton(get_text(user_id, "back_button"))]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text(manual_prompt, reply_markup=reply_markup)
@@ -1801,7 +1813,7 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     # Only show name prompt if we have city data
     if context.user_data.get("city"):
-        keyboard = [[KeyboardButton("🔙 Назад")]]
+        keyboard = [[KeyboardButton(get_text(user_id, "back_button"))]]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text(
             get_text(user_id, "questionnaire_name"),
@@ -1819,9 +1831,9 @@ async def handle_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     # Handle back button
     if name_text in ["🔙 Назад", "🔙 Back"]:
         keyboard = [
-            [KeyboardButton("📍 Поделиться геолокацией", request_location=True)],
-            [KeyboardButton("✍️ Ввести город вручную")],
-            [KeyboardButton("🔙 Назад")]
+            [KeyboardButton(get_text(user_id, "share_gps"), request_location=True)],
+            [KeyboardButton(get_text(user_id, "manual_entry"))],
+            [KeyboardButton(get_text(user_id, "back_button"))]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         
@@ -1840,8 +1852,8 @@ async def handle_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     # Add skip and back buttons for bio
     keyboard = [
-        [KeyboardButton("⏭️ Пропустить")],
-        [KeyboardButton("🔙 Назад")]
+        [KeyboardButton(get_text(user_id, "btn_skip"))],
+        [KeyboardButton(get_text(user_id, "back_button"))]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
 
@@ -1858,7 +1870,7 @@ async def handle_bio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     # Handle back button
     if bio_text in ["🔙 Назад", "🔙 Back"]:
-        keyboard = [[KeyboardButton("🔙 Назад")]]
+        keyboard = [[KeyboardButton(get_text(user_id, "back_button"))]]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text(
             get_text(user_id, "questionnaire_name"),
@@ -1867,7 +1879,7 @@ async def handle_bio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return NAME
 
     # Check if user wants to skip
-    if bio_text in ["⏭️ Пропустить", "пропустить", "skip", "⏭️"]:
+    if bio_text in ["⏭️ Пропустить", "пропустить", "skip", get_text(user_id, "btn_skip"), "⏭️"]:
         context.user_data["bio"] = get_text(user_id, "default_bio_skip")
     else:
         context.user_data["bio"] = bio_text
@@ -1908,9 +1920,9 @@ async def show_registration_nd_traits(update, context, user_id):
         keyboard.append([InlineKeyboardButton(button_text, callback_data=f"reg_trait_{trait_key}")])
 
     # Always add control buttons at the end
-    keyboard.append([InlineKeyboardButton("💾 Сохранить", callback_data="reg_traits_done")])
-    keyboard.append([InlineKeyboardButton("⏭️ Пропустить всё", callback_data="reg_traits_skip")])
-    keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="reg_traits_back")])
+    keyboard.append([InlineKeyboardButton(get_text(user_id, "btn_save"), callback_data="reg_traits_done")])
+    keyboard.append([InlineKeyboardButton(get_text(user_id, "btn_skip_all"), callback_data="reg_traits_skip")])
+    keyboard.append([InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="reg_traits_back")])
 
     # Remove any existing keyboard first
     await update.message.reply_text(
@@ -1942,8 +1954,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             if text in ["🔙 Назад", "🔙 Back"]:
                 # Go back to bio step
                 keyboard = [
-                    [KeyboardButton("⏭️ Пропустить")],
-                    [KeyboardButton("🔙 Назад")]
+                    [KeyboardButton(get_text(user_id, "btn_skip"))],
+                    [KeyboardButton(get_text(user_id, "back_button"))]
                 ]
                 reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
                 
@@ -1953,7 +1965,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 )
                 return BIO
 
-            if text in ["✅ Готово", "✅ Done", "⏭️ Пропустить остальные", "⏭️ Skip remaining"]:
+            if text in ["✅ Готово", "✅ Done", get_text(user_id, "btn_done"), "⏭️ Пропустить остальные", "⏭️ Skip remaining", get_text(user_id, "btn_skip_remaining")]:
                 # Check if we have at least one photo
                 photos = context.user_data.get("photos", [])
                 media_id = context.user_data.get("media_id")
@@ -1963,7 +1975,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                     return ConversationHandler.END
                 else:
                     keyboard = [
-                        [KeyboardButton("🔙 Назад")]
+                        [KeyboardButton(get_text(user_id, "back_button"))]
                     ]
                     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
                     await update.message.reply_text(
@@ -1974,7 +1986,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             else:
                 # Invalid text - ask for photo again
                 keyboard = [
-                    [KeyboardButton("🔙 Назад")]
+                    [KeyboardButton(get_text(user_id, "back_button"))]
                 ]
                 reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
                 await update.message.reply_text(
@@ -2005,9 +2017,9 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 if photos_count < 3:
                     # Ask for more photos
                     keyboard = [
-                        [KeyboardButton("✅ Готово")],
-                        [KeyboardButton("⏭️ Пропустить остальные")],
-                        [KeyboardButton("🔙 Назад")]
+                        [KeyboardButton(get_text(user_id, "btn_done"))],
+                        [KeyboardButton(get_text(user_id, "btn_skip_remaining"))],
+                        [KeyboardButton(get_text(user_id, "back_button"))]
                     ]
                     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
                     await update.message.reply_text(
@@ -2022,8 +2034,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             else:
                 # Already have 3 photos
                 keyboard = [
-                    [KeyboardButton("✅ Готово")],
-                    [KeyboardButton("🔙 Назад")]
+                    [KeyboardButton(get_text(user_id, "btn_done"))],
+                    [KeyboardButton(get_text(user_id, "back_button"))]
                 ]
                 reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
                 await update.message.reply_text(
@@ -2057,11 +2069,11 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         else:
             # No valid media received
             keyboard = [
-                [KeyboardButton("🔙 Назад")]
+                [KeyboardButton(get_text(user_id, "back_button"))]
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
             await update.message.reply_text(
-                "📸 Пожалуйста, отправьте фото, видео или видео-сообщение",
+                get_text(user_id, "media_send_prompt"),
                 reply_markup=reply_markup
             )
             return PHOTO
@@ -2070,7 +2082,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         logger.error(f"Error in handle_photo: {e}")
         try:
             keyboard = [
-                [KeyboardButton("🔙 Назад")]
+                [KeyboardButton(get_text(user_id, "back_button"))]
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
             await update.message.reply_text(
@@ -2345,8 +2357,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data == "reg_traits_back":
             # Go back to bio step
             keyboard = [
-                [KeyboardButton("⏭️ Пропустить")],
-                [KeyboardButton("🔙 Назад")]
+                [KeyboardButton(get_text(user_id, "btn_skip"))],
+                [KeyboardButton(get_text(user_id, "back_button"))]
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
             
@@ -2594,7 +2606,7 @@ async def show_user_profile(query, user_id):
         await query.edit_message_text(
             "❌ Профиль не найден. Отправьте /start для создания профиля.",
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")
             ]])
         )
         return
@@ -2645,7 +2657,7 @@ async def show_user_profile(query, user_id):
             [InlineKeyboardButton("📝 Продолжить заполнение", callback_data="continue_profile")],
             [InlineKeyboardButton("📸 Изменить фото", callback_data="change_photo")],
             [InlineKeyboardButton("✍️ Изменить описание", callback_data="change_bio")],
-            [InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")]
+            [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
         ]
         
         await query.edit_message_text(
@@ -2688,7 +2700,7 @@ async def show_user_profile(query, user_id):
         [InlineKeyboardButton("👤 Изменить имя", callback_data="change_name"),
          InlineKeyboardButton("📍 Изменить город", callback_data="change_city")],
         [InlineKeyboardButton("🧠 " + ("My Characteristics" if user.get('lang') == 'en' else "Изменить нейроотличия"), callback_data="manage_symptoms")],
-        [InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")]
+        [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
     ]
 
     # Send profile with photo if available
@@ -2723,7 +2735,7 @@ async def browse_profiles(query, context, user_id):
             query,
             "❌ Профиль не найден. Отправьте /start для создания профиля.",
             InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")
             ]])
         )
         return
@@ -2735,7 +2747,7 @@ async def browse_profiles(query, context, user_id):
             InlineKeyboardMarkup([
                 [InlineKeyboardButton("📝 Завершить профиль", callback_data="continue_profile")],
                 [InlineKeyboardButton("👀 Смотреть анкеты все равно", callback_data="browse_anyway")],
-                [InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")]
+                [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
             ])
         )
         return
@@ -3305,7 +3317,7 @@ async def show_profile_card(query, context, user_id, profile):
 
     # Main navigation row: Back, Heart, Next (always show all three)
     nav_buttons = [
-        InlineKeyboardButton("🔙 Назад", callback_data="prev_profile" if current_index > 0 else "no_action"),
+        InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="prev_profile" if current_index > 0 else "no_action"),
         InlineKeyboardButton("❤️", callback_data=f"like_{profile['user_id']}"),
         InlineKeyboardButton("Далее ▶️", callback_data="next_profile" if current_index < total_profiles - 1 else "no_action")
     ]
@@ -3358,7 +3370,7 @@ async def handle_like_profile(query, context, user_id, target_id):
                 query,
                 "❌ Пользователь не найден",
                 InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Назад", callback_data="browse_profiles")
+                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="browse_profiles")
                 ]])
             )
             return
@@ -3631,7 +3643,7 @@ async def show_my_likes_direct(query, context, user_id):
             buttons.append([InlineKeyboardButton(f"💝 Взаимные лайки ({len(mutual_matches)})", callback_data="view_mutual_matches")])
         if incoming_likes:
             buttons.append([InlineKeyboardButton(f"💌 Входящие лайки ({len(incoming_likes)})", callback_data="view_incoming_likes")])
-        buttons.append([InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")])
+        buttons.append([InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")])
 
         await safe_edit_message(
             query,
@@ -3647,7 +3659,7 @@ async def show_my_likes_direct(query, context, user_id):
             query,
             "Пока нет новых лайков.",
             InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")
             ]])
         )
 
@@ -3869,7 +3881,7 @@ async def show_incoming_like_card(query, context, user_id, profile):
             await query.message.reply_text(
                 "❌ Ошибка при загрузке профиля",
                 reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")
+                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")
                 ]])
             )
         except:
@@ -3935,7 +3947,7 @@ async def show_settings_menu(query, user_id):
         [InlineKeyboardButton("📍 Сменить город", callback_data="change_city_setting")],
         [InlineKeyboardButton("💕 Изменить предпочтения", callback_data="change_interest_setting")],
         [InlineKeyboardButton("🗑️ Удалить аккаунт", callback_data="delete_account")],
-        [InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")]
+        [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
     ]
 
     await query.edit_message_text(
@@ -3953,7 +3965,7 @@ async def show_feedback_menu(query, user_id):
         [InlineKeyboardButton("💡 Предложение", callback_data="feedback_suggestion")],
         [InlineKeyboardButton("🆘 Техническая поддержка", callback_data="feedback_support")],
         [InlineKeyboardButton("⭐ Оценить приложение", callback_data="rate_app")],
-        [InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")]
+        [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
     ]
 
     await query.edit_message_text(
@@ -4069,7 +4081,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(welcome_text)
         
-        keyboard = [[KeyboardButton("🔙 Назад к главному меню")]]
+        keyboard = [[KeyboardButton(get_text(user_id, "back_to_main_menu"))]]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         
         await update.message.reply_text(age_text, reply_markup=reply_markup)
@@ -4176,7 +4188,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     if current_lang == 'en':
                         error_msg = "❌ Couldn't determine your city from GPS. Please enter your city manually:"
                     else:
-                        error_msg = "❌ Не удалось определить город по GPS. Пожалуйста, введите город вручную:"
+                        error_msg = get_text(user_id, "gps_error")
                     
                     keyboard = [
                         [KeyboardButton("📍 Попробовать еще раз" if current_lang == 'ru' else "📍 Try GPS again", request_location=True)],
@@ -4526,7 +4538,7 @@ async def show_language_command(update: Update, context: ContextTypes.DEFAULT_TY
     keyboard = [
         [InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
         [InlineKeyboardButton("🇺🇸 English", callback_data="lang_en")],
-        [InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")]
+        [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
     ]
     
     await update.message.reply_text(
@@ -4688,9 +4700,9 @@ async def toggle_registration_trait(query, context, user_id, trait_key):
         keyboard.append([InlineKeyboardButton(button_text, callback_data=f"reg_trait_{trait_key_btn}")])
 
     # Always add control buttons
-    keyboard.append([InlineKeyboardButton("💾 Сохранить", callback_data="reg_traits_done")])
-    keyboard.append([InlineKeyboardButton("⏭️ Пропустить всё", callback_data="reg_traits_skip")])
-    keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="reg_traits_back")])
+    keyboard.append([InlineKeyboardButton(get_text(user_id, "btn_save"), callback_data="reg_traits_done")])
+    keyboard.append([InlineKeyboardButton(get_text(user_id, "btn_skip_all"), callback_data="reg_traits_skip")])
+    keyboard.append([InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="reg_traits_back")])
 
     try:
         await query.edit_message_text(
@@ -4755,9 +4767,9 @@ async def show_registration_nd_symptoms(query, context, user_id):
         keyboard.append([InlineKeyboardButton(button_text, callback_data=f"reg_symptom_{symptom_key}")])
 
     # Add control buttons
-    keyboard.append([InlineKeyboardButton("💾 Сохранить", callback_data="reg_symptoms_done")])
+    keyboard.append([InlineKeyboardButton(get_text(user_id, "btn_save"), callback_data="reg_symptoms_done")])
     keyboard.append([InlineKeyboardButton("⏭️ Пропустить", callback_data="reg_symptoms_skip")])
-    keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="reg_symptoms_back")])
+    keyboard.append([InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="reg_symptoms_back")])
 
     try:
         await query.edit_message_text(
@@ -4858,8 +4870,8 @@ async def show_add_traits_menu(query, user_id):
         button_text = f"{marker}{trait_name}"
         keyboard.append([InlineKeyboardButton(button_text, callback_data=f"toggle_trait_{trait_key}")])
 
-    keyboard.append([InlineKeyboardButton("💾 Сохранить", callback_data="save_traits")])
-    keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="manage_symptoms")])
+    keyboard.append([InlineKeyboardButton(get_text(user_id, "btn_save"), callback_data="save_traits")])
+    keyboard.append([InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="manage_symptoms")])
 
     try:
         await query.edit_message_text(
@@ -4896,8 +4908,8 @@ async def show_detailed_symptoms_menu(query, user_id):
         button_text = f"{marker}{symptom_name}"
         keyboard.append([InlineKeyboardButton(button_text, callback_data=f"toggle_symptom_{symptom_key}")])
 
-    keyboard.append([InlineKeyboardButton("💾 Сохранить", callback_data="save_symptoms")])
-    keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="manage_symptoms")])
+    keyboard.append([InlineKeyboardButton(get_text(user_id, "btn_save"), callback_data="save_symptoms")])
+    keyboard.append([InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="manage_symptoms")])
 
     try:
         await query.edit_message_text(
@@ -4919,7 +4931,7 @@ async def show_nd_search_menu(query, user_id):
         [InlineKeyboardButton("🔍 Поиск по особенностям", callback_data="search_by_traits")],
         [InlineKeyboardButton("🎯 Совместимость", callback_data="compatibility_search")],
         [InlineKeyboardButton("💡 Рекомендации", callback_data="recommendations")],
-        [InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")]
+        [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
     ]
 
     await query.edit_message_text(
@@ -4939,7 +4951,7 @@ async def search_by_traits(query, context, user_id):
             "❌ Сначала добавьте свои Нейроотличия в настройках профиля",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("🧠 Добавить особенности", callback_data="manage_symptoms"),
-                InlineKeyboardButton("🔙 Назад", callback_data="nd_search")
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="nd_search")
             ]])
         )
         return
@@ -4968,7 +4980,7 @@ async def search_by_traits(query, context, user_id):
             "😕 Не найдено пользователей с похожими ND-особенностями\n\nПопробуйте:\n• Расширить свои особенности\n• Поискать по характеристикам",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔍 Совместимость", callback_data="compatibility_search")],
-                [InlineKeyboardButton("🔙 Назад", callback_data="nd_search")]
+                [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="nd_search")]
             ])
         )
         return
@@ -5055,7 +5067,7 @@ async def compatibility_search(query, context, user_id):
             "❌ Добавьте Нейроотличия и характеристики для поиска совместимости",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("🧠 Настроить профиль", callback_data="manage_symptoms"),
-                InlineKeyboardButton("🔙 Назад", callback_data="nd_search")
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="nd_search")
             ]])
         )
         return
@@ -5097,7 +5109,7 @@ async def compatibility_search(query, context, user_id):
             "😕 Не найдено совместимых пользователей\n\nПопробуйте добавить больше характеристик в профиль",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("🔍 Поиск по особенностям", callback_data="search_by_traits")],
-                [InlineKeyboardButton("🔙 Назад", callback_data="nd_search")]
+                [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="nd_search")]
             ])
         )
         return
@@ -5184,7 +5196,7 @@ async def show_recommendations(query, context, user_id):
             "😊 Пока нет новых рекомендаций\n\nПопробуйте:\n• Обновить свой профиль\n• Добавить больше ND-характеристик\n• Использовать обычный поиск",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("👀 Смотреть анкеты", callback_data="browse_profiles")],
-                [InlineKeyboardButton("🔙 Назад", callback_data="nd_search")]
+                [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="nd_search")]
             ])
         )
         return
@@ -5417,7 +5429,7 @@ async def show_rating_menu(query, user_id):
         stars = "⭐" * i
         keyboard.append([InlineKeyboardButton(f"{stars} {i}", callback_data=f"rate_app_{i}")])
 
-    keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="feedback")])
+    keyboard.append([InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="feedback")])
 
     await query.edit_message_text(
         text,
@@ -5453,7 +5465,7 @@ async def change_language(query, user_id):
     keyboard = [
         [InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")],
         [InlineKeyboardButton("🇺🇸 English", callback_data="lang_en")],
-        [InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")]
+        [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
     ]
 
     await query.edit_message_text(
@@ -5526,7 +5538,7 @@ async def start_change_interest_setting(query, context, user_id):
         [InlineKeyboardButton("Парни", callback_data="interest_male")],
         [InlineKeyboardButton("Девушки", callback_data="interest_female")],
         [InlineKeyboardButton("Всё равно", callback_data="interest_both")],
-        [InlineKeyboardButton("🔙 Назад", callback_data="profile_settings")]
+        [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="profile_settings")]
     ]
 
     await query.edit_message_text(
@@ -5663,7 +5675,7 @@ async def continue_profile_creation(query, context, user_id):
         await query.edit_message_text(
             "❌ Профиль не найден. Отправьте /start для создания профиля.",
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")
             ]])
         )
         return
@@ -5682,14 +5694,14 @@ async def continue_profile_creation(query, context, user_id):
         await query.edit_message_text(
             text,
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔙 Назад" if lang == 'ru' else "🔙 Back", callback_data="back_to_menu")
+                InlineKeyboardButton(get_text(user_id, "back_button") if lang == 'ru' else "🔙 Back", callback_data="back_to_menu")
             ]])
         )
     except:
         await query.message.reply_text(
             text,
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔙 Назад" if lang == 'ru' else "🔙 Back", callback_data="back_to_menu")
+                InlineKeyboardButton(get_text(user_id, "back_button") if lang == 'ru' else "🔙 Back", callback_data="back_to_menu")
             ]])
         )
 
@@ -6424,7 +6436,7 @@ async def handle_like_incoming_profile(query, context, user_id, target_id):
                 query,
                 "❌ Пользователь не найден",
                 InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")
+                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")
                 ]])
             )
             return
@@ -6436,7 +6448,7 @@ async def handle_like_incoming_profile(query, context, user_id, target_id):
                 query,
                 "❌ Этот пользователь не лайкал вас",
                 InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Назад", callback_data="back_to_menu")
+                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")
                 ]])
             )
             return
@@ -6537,7 +6549,7 @@ async def show_detailed_match_profile(query, user_id, target_id):
                 query,
                 "❌ Пользователь не найден",
                 InlineKeyboardMarkup([[
-                    InlineKeyboardButton("🔙 Назад", callback_data="my_likes")
+                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="my_likes")
                 ]])
             )
             return
@@ -6638,7 +6650,7 @@ async def show_detailed_match_profile(query, user_id, target_id):
             query,
             "❌ Ошибка при загрузке профиля",
             InlineKeyboardMarkup([[
-                InlineKeyboardButton("🔙 Назад", callback_data="my_likes")
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="my_likes")
             ]])
         )
 
