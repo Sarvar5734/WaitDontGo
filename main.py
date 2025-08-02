@@ -2207,14 +2207,32 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
         elif data.startswith("like_"):
             try:
-                profile_id = int(data.split("_")[1])
+                # Handle different like callback formats
+                if data.startswith("like_incoming_"):
+                    # Format: like_incoming_410177871
+                    profile_id = int(data.split("_")[2])
+                else:
+                    # Format: like_410177871  
+                    profile_id = int(data.split("_")[1])
                 await handle_like_profile(query, context, user_id, profile_id)
             except (ValueError, IndexError) as e:
                 logger.error(f"Error parsing like callback data '{data}': {e}")
                 await query.answer("❌ Ошибка обработки. Попробуйте еще раз.")
                 return
         elif data.startswith("pass_"):
-            await handle_pass_profile(query, context, user_id)
+            try:
+                # Handle different pass callback formats
+                if data.startswith("pass_incoming_"):
+                    # Format: pass_incoming_410177871
+                    profile_id = int(data.split("_")[2])
+                    await handle_decline_like(query, user_id, profile_id)
+                else:
+                    # Format: pass_410177871
+                    await handle_pass_profile(query, context, user_id)
+            except (ValueError, IndexError) as e:
+                logger.error(f"Error parsing pass callback data '{data}': {e}")
+                await query.answer("❌ Ошибка обработки. Попробуйте еще раз.")
+                return
         elif data == "prev_profile":
             await show_previous_profile(query, context, user_id)
         elif data == "next_profile":
@@ -2271,12 +2289,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.answer("❌ Ошибка обработки.")
                 return
 
-        elif data.startswith("like_incoming_"):
-            target_id = int(data.split("_")[2])
-            await handle_like_incoming_profile(query, context, user_id, target_id)
-        elif data.startswith("pass_incoming_"):
-            target_id = int(data.split("_")[2])
-            await handle_pass_incoming_profile(query, context, user_id, target_id)
+
         elif data == "manage_symptoms":
             await show_nd_traits_menu(query, user_id)
         elif data == "manage_symptoms_detailed":
