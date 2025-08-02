@@ -417,8 +417,7 @@ TEXTS = {
         "change_photo": "📸 Изменить фото",
         "change_bio": "✍️ Изменить описание",
         "nd_traits": "Нейроотличия", 
-        "nd_characteristics_label": "Характеристики",
-        "and_more": "{get_text(user_id, 'and_more')}"
+        "nd_characteristics_label": "Характеристики"
     },
     "en": {
         "welcome": "🧠 Welcome to Alt3r!\n\nThis is a dating bot for neurodivergent people. Here you can find understanding, support and real connections with those who share your experience.\n\n✨ Let's create your profile!",
@@ -645,8 +644,7 @@ TEXTS = {
         "change_photo": "📸 Change Photo",
         "change_bio": "✍️ Change Bio",
         "nd_traits": "ND Traits",
-        "nd_characteristics_label": "Characteristics",
-        "and_more": " and "
+        "nd_characteristics_label": "Characteristics"
     }
 }
 
@@ -2748,15 +2746,15 @@ async def show_user_profile(query, user_id):
             traits_dict = ND_TRAITS.get(lang, ND_TRAITS['ru'])
             trait_names = [traits_dict.get(trait, trait) for trait in nd_traits if trait in traits_dict and trait != 'none']
             if trait_names:
-                profile_text += f"🧠 {get_text(user_id, 'nd_traits')}: *{', '.join(trait_names)}*\n"
+                profile_text += f"🧠 Нейроотличия: *{', '.join(trait_names)}*\n"
 
         if nd_symptoms:
             symptoms_dict = ND_SYMPTOMS.get(lang, ND_SYMPTOMS['ru'])
             symptom_names = [symptoms_dict.get(symptom, symptom) for symptom in nd_symptoms if symptom in symptoms_dict]
             if symptom_names:
-                profile_text += f"🔍 {get_text(user_id, 'nd_characteristics_label')}: *{', '.join(symptom_names[:3])}"
+                profile_text += f"🔍 Характеристики: *{', '.join(symptom_names[:3])}"
                 if len(symptom_names) > 3:
-                    profile_text += f"{get_text(user_id, 'and_more')}{len(symptom_names) - 3}"
+                    profile_text += f" и еще {len(symptom_names) - 3}"
                 profile_text += "*\n"
 
     profile_text += f"💭 {user['bio']}\n"
@@ -3770,7 +3768,7 @@ async def show_mutual_match_card(query, context, user_id, profile):
             traits_dict = ND_TRAITS.get('ru', ND_TRAITS['ru'])
             trait_names = [traits_dict.get(trait, trait) for trait in nd_traits if trait in traits_dict and trait != 'none']
             if trait_names:
-                profile_text += f"🧠 {get_text(user_id, 'nd_traits')}: *{', '.join(trait_names)}*\n"
+                profile_text += f"🧠 Нейроотличия: *{', '.join(trait_names)}*\n"
         
         profile_text += f"\n💭 {profile.get('bio', '')}\n"
         profile_text += f"\n✨ Свяжитесь друг с другом напрямую в Telegram!"
@@ -4713,7 +4711,7 @@ async def show_nd_traits_menu(query, user_id):
         if symptom_names:
             text += f"Характеристики:\n• " + "\n• ".join(symptom_names[:5])
             if len(symptom_names) > 5:
-                text += f"\n• ...{get_text(user_id, 'and_more')}{len(symptom_names) - 5}"
+                text += f"\n• ... и еще {len(symptom_names) - 5}"
             text += "\n\n"
 
     text += "Что вы хотите изменить?"
@@ -6391,15 +6389,15 @@ async def handle_like_back(query, context, user_id, target_id):
             traits_dict = ND_TRAITS.get(lang, ND_TRAITS['ru'])
             trait_names = [traits_dict.get(trait, trait) for trait in nd_traits if trait in traits_dict and trait != 'none']
             if trait_names:
-                profile_text += f"🧠 {get_text(user_id, 'nd_traits')}: *{', '.join(trait_names)}*\n"
+                profile_text += f"🧠 Нейроотличия: *{', '.join(trait_names)}*\n"
 
         if nd_symptoms:
             symptoms_dict = ND_SYMPTOMS.get(lang, ND_SYMPTOMS['ru'])
             symptom_names = [symptoms_dict.get(symptom, symptom) for symptom in nd_symptoms if symptom in symptoms_dict]
             if symptom_names:
-                profile_text += f"🔍 {get_text(user_id, 'nd_characteristics_label')}: *{', '.join(symptom_names[:3])}"
+                profile_text += f"🔍 Характеристики: *{', '.join(symptom_names[:3])}"
                 if len(symptom_names) > 3:
-                    profile_text += f"{get_text(user_id, 'and_more')}{len(symptom_names) - 3}"
+                    profile_text += f" и еще {len(symptom_names) - 3}"
                 profile_text += "*\n"
         
         profile_text += f"\n💭 {target_user.get('bio', '')}\n"
@@ -6644,15 +6642,15 @@ async def show_detailed_match_profile(query, user_id, target_id):
             traits_dict = ND_TRAITS.get(lang, ND_TRAITS['ru'])
             trait_names = [traits_dict.get(trait, trait) for trait in nd_traits if trait in traits_dict and trait != 'none']
             if trait_names:
-                profile_text += f"🧠 {get_text(user_id, 'nd_traits')}: *{', '.join(trait_names)}*\n"
+                profile_text += f"🧠 Нейроотличия: *{', '.join(trait_names)}*\n"
 
         if nd_symptoms:
             symptoms_dict = ND_SYMPTOMS.get(lang, ND_SYMPTOMS['ru'])
             symptom_names = [symptoms_dict.get(symptom, symptom) for symptom in nd_symptoms if symptom in symptoms_dict]
             if symptom_names:
-                profile_text += f"🔍 {get_text(user_id, 'nd_characteristics_label')}: *{', '.join(symptom_names[:3])}"
+                profile_text += f"🔍 Характеристики: *{', '.join(symptom_names[:3])}"
                 if len(symptom_names) > 3:
-                    profile_text += f"{get_text(user_id, 'and_more')}{len(symptom_names) - 3}"
+                    profile_text += f" и еще {len(symptom_names) - 3}"
                 profile_text += "*\n"
         
         profile_text += f"\n💭 {target_user['bio']}\n"
