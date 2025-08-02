@@ -372,6 +372,12 @@ TEXTS = {
         "video_send_error": "❌ Не удалось отправить видео. Возможно, пользователь заблокировал бота.",
         "message_to_user": "💌 Отправка сообщения пользователю {}\n\nНапишите ваше сообщение:",
         "message_send_error": "❌ Не удалось отправить сообщение. Возможно, пользователь заблокировал бота.",
+        "gender_selection_error": "Please select gender from the given options.",
+        "interest_selection_error": "Please select from the given options.",
+        "nd_selection_prompt": "🧠 Select your neurodivergent traits:\n\nThis will help find people with similar experience!\nYou can select up to 3 traits.",
+        "nd_selected_count": "Selected:",
+        "selecting_traits": "Selecting traits...",
+        "default_bio_skip": "Will tell about myself later",
         "max_traits_reached": "❌ Можно выбрать максимум 3 особенности",
         "max_characteristics_reached": "❌ Можно выбрать максимум 3 характеристики",
         "function_in_development": "Функция в разработке",
@@ -383,7 +389,13 @@ TEXTS = {
         "interest_selection_error": "Пожалуйста, выберите из предложенных вариантов.",
         "location_sharing_error": "Пожалуйста, поделитесь местоположением или введите город вручную.",
         "photo_required": "📸 Пожалуйста, сначала отправьте хотя бы одно фото или видео",
-        "media_send_prompt": "📸 Отправьте фото, видео или видео-сообщение"
+        "media_send_prompt": "📸 Отправьте фото, видео или видео-сообщение",
+        "gender_selection_error": "Пожалуйста, выберите пол из предложенных вариантов.",
+        "interest_selection_error": "Пожалуйста, выберите из предложенных вариантов.",
+        "nd_selection_prompt": "🧠 Выберите ваши нейроотличности:\n\nЭто поможет найти людей с похожим опытом!\nМожно выбрать до 3 особенностей.",
+        "nd_selected_count": "Выбрано:",
+        "selecting_traits": "Выбор особенностей...",
+        "default_bio_skip": "Расскажу о себе позже"
     },
     "en": {
         "welcome": "🧠 Welcome to Alt3r!\n\nThis is a dating bot for neurodivergent people. Here you can find understanding, support and real connections with those who share your experience.\n\n✨ Let's create your profile!",
@@ -1584,7 +1596,7 @@ async def handle_gender(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     elif gender_text == get_text(user_id, "btn_boy"):
         context.user_data["gender"] = "male"
     else:
-        await update.message.reply_text("Пожалуйста, выберите пол из предложенных вариантов.")
+        await update.message.reply_text(get_text(user_id, "gender_selection_error"))
         return GENDER
 
     keyboard = [
@@ -1627,7 +1639,7 @@ async def handle_interest(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     elif interest_text == get_text(user_id, "btn_all"):
         context.user_data["interest"] = "both"
     else:
-        await update.message.reply_text("Пожалуйста, выберите из предложенных вариантов.")
+        await update.message.reply_text(get_text(user_id, "interest_selection_error"))
         return INTEREST
 
     # Ask for location with GPS option
@@ -1856,7 +1868,7 @@ async def handle_bio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     # Check if user wants to skip
     if bio_text in ["⏭️ Пропустить", "пропустить", "skip", "⏭️"]:
-        context.user_data["bio"] = "Расскажу о себе позже"
+        context.user_data["bio"] = get_text(user_id, "default_bio_skip")
     else:
         context.user_data["bio"] = bio_text
 
@@ -1873,12 +1885,10 @@ async def show_registration_nd_traits(update, context, user_id):
     user = db.get(User.user_id == user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
 
-    text = "🧠 Выберите ваши нейроотличности:\n\n"
-    text += "Это поможет найти людей с похожим опытом!\n"
-    text += "Можно выбрать до 3 особенностей.\n\n"
+    text = get_text(user_id, "nd_selection_prompt") + "\n\n"
 
     current_traits = context.user_data.get("selected_nd_traits", [])
-    text += f"Выбрано: {len(current_traits)}/3\n\n"
+    text += f"{get_text(user_id, 'nd_selected_count')} {len(current_traits)}/3\n\n"
 
     if current_traits:
         trait_names = [ND_TRAITS[lang].get(trait, trait) for trait in current_traits if trait in ND_TRAITS[lang] and trait != 'none']
@@ -1904,7 +1914,7 @@ async def show_registration_nd_traits(update, context, user_id):
 
     # Remove any existing keyboard first
     await update.message.reply_text(
-        "Выбор особенностей...",
+        get_text(user_id, "selecting_traits"),
         reply_markup=ReplyKeyboardRemove()
     )
     
@@ -1957,7 +1967,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                     ]
                     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
                     await update.message.reply_text(
-                        "⚠️ Пожалуйста, сначала отправьте хотя бы одно фото или видео",
+                        get_text(user_id, "photo_required"),
                         reply_markup=reply_markup
                     )
                     return PHOTO
@@ -1968,7 +1978,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 ]
                 reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
                 await update.message.reply_text(
-                    "📸 Пожалуйста, отправьте фото, видео или видео-сообщение",
+                    get_text(user_id, "media_send_prompt"),
                     reply_markup=reply_markup
                 )
                 return PHOTO
