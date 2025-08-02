@@ -1301,7 +1301,7 @@ def is_profile_complete(user: UserModel) -> bool:
     # Check media - either media_id or photos array (must have actual content)
     has_media = (user.media_id and user.media_id.strip()) or (user.photos and len(user.photos) > 0 and user.photos[0])
 
-    return has_media
+    return bool(has_media)
 
 def is_profile_complete_dict(user: Dict[str, Any]) -> bool:
     """Check if user profile is complete (dictionary version)"""
@@ -1320,7 +1320,7 @@ def is_profile_complete_dict(user: Dict[str, Any]) -> bool:
     media_id = user.get('media_id', '')
     has_media = (media_id and media_id.strip()) or (photos and len(photos) > 0 and photos[0])
 
-    return has_media
+    return bool(has_media)  # Ensure boolean return
 
 def get_text(user_id: int, key: str) -> str:
     """Get localized text for user"""
@@ -1525,7 +1525,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     logger.info(f"DEBUG: User {user_id} exists: {existing_user is not None}")
     if existing_user:
         is_complete = is_profile_complete_dict(existing_user)
-        logger.info(f"DEBUG: User {user_id} profile complete: {is_complete}")
+        logger.info(f"DEBUG: User {user_id} profile complete: {is_complete} (type: {type(is_complete)})")
         logger.info(f"DEBUG: User data: {existing_user}")
         
         if is_complete:
