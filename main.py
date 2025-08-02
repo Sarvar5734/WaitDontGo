@@ -22,7 +22,7 @@ from telegram.ext import (
     MessageHandler, CallbackQueryHandler, ConversationHandler, filters
 )
 from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean, DateTime, JSON
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from dotenv import load_dotenv
 from keep_alive import start_keep_alive
@@ -73,6 +73,7 @@ class User(Base):
     matches = Column(JSON, default=list)
     nd_traits = Column(JSON, default=list)
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class Feedback(Base):
@@ -245,8 +246,8 @@ def get_user_language(user_id):
     """Get user's language preference"""
     with get_db_session() as session:
         user = session.query(User).filter(User.user_id == user_id).first()
-        if user:
-            return user.language or 'en'
+        if user and user.language:
+            return user.language
         return 'en'
 
 def get_text(user_id, key):
@@ -281,12 +282,15 @@ def save_user_data(user_id, data):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start command handler"""
+    if not update.effective_user or not update.message:
+        return
+        
     user_id = update.effective_user.id
     
     # Check if user exists
     user = get_user_by_id(user_id)
     
-    if user and user.profile_complete:
+    if user and user.profile_complete is True:
         # User exists and profile is complete - show main menu
         await show_main_menu(update, context)
     else:
@@ -304,10 +308,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle language selection"""
+    if not update.callback_query or not update.effective_user:
+        return
+        
     query = update.callback_query
     await query.answer()
     
     user_id = update.effective_user.id
+    if not query.data:
+        return
+        
     language = query.data.split('_')[1]
     
     # Save language preference
@@ -326,6 +336,9 @@ async def language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def age_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle age input"""
+    if not update.effective_user or not update.message or not update.message.text:
+        return AGE
+        
     user_id = update.effective_user.id
     
     try:
@@ -352,6 +365,9 @@ async def age_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def gender_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle gender selection"""
+    if not update.effective_user or not update.message or not update.message.text:
+        return GENDER
+        
     user_id = update.effective_user.id
     gender_text = update.message.text
     
@@ -379,6 +395,9 @@ async def gender_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def interest_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle interest selection"""
+    if not update.effective_user or not update.message or not update.message.text:
+        return INTEREST
+        
     user_id = update.effective_user.id
     interest_text = update.message.text
     
@@ -401,14 +420,19 @@ async def interest_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def city_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle city input"""
+    if not update.effective_user or not update.message:
+        return CITY
+        
     user_id = update.effective_user.id
     
     if update.message.location:
         # User shared location
         context.user_data['city'] = f"Location: {update.message.location.latitude}, {update.message.location.longitude}"
-    else:
+    elif update.message.text:
         # User typed city name
         context.user_data['city'] = update.message.text
+    else:
+        return CITY
     
     # Ask for name
     name_text = get_text(user_id, 'questionnaire_name')
@@ -417,6 +441,9 @@ async def city_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def name_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle name input"""
+    if not update.effective_user or not update.message or not update.message.text:
+        return NAME
+        
     user_id = update.effective_user.id
     context.user_data['name'] = update.message.text
     
@@ -427,6 +454,9 @@ async def name_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def bio_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle bio input"""
+    if not update.effective_user or not update.message or not update.message.text:
+        return BIO
+        
     user_id = update.effective_user.id
     context.user_data['bio'] = update.message.text
     
@@ -441,9 +471,12 @@ async def bio_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle photo upload"""
+    if not update.effective_user or not update.message:
+        return PHOTO
+        
     user_id = update.effective_user.id
     
-    if update.message.text == get_text(user_id, 'btn_skip'):
+    if update.message.text and update.message.text == get_text(user_id, 'btn_skip'):
         # User skipped photos
         await confirm_profile(update, context)
         return CONFIRM
@@ -524,6 +557,9 @@ async def confirm_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def confirm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle profile confirmation"""
+    if not update.callback_query or not update.effective_user or not update.callback_query.data:
+        return ConversationHandler.END
+        
     query = update.callback_query
     await query.answer()
     
@@ -562,6 +598,9 @@ async def confirm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show main menu"""
+    if not update.effective_user or not update.message:
+        return
+        
     user_id = update.effective_user.id
     
     keyboard = [
@@ -611,6 +650,9 @@ async def show_main_menu_from_callback(query, context: ContextTypes.DEFAULT_TYPE
 
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle menu callbacks"""
+    if not update.callback_query or not update.callback_query.from_user or not update.callback_query.data:
+        return
+        
     query = update.callback_query
     await query.answer()
     
@@ -643,12 +685,12 @@ async def show_my_profile(query, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Profile not found. Please use /start to create one.")
         return
     
-    name = user.name or 'Unknown'
-    age = user.age or 0
-    gender = user.gender or 'unknown'
-    interest = user.interest or 'all'
-    city = user.city or 'Unknown'
-    bio = user.bio or 'No bio'
+    name = user.name if user.name else 'Unknown'
+    age = user.age if user.age else 0
+    gender = user.gender if user.gender else 'unknown'
+    interest = user.interest if user.interest else 'all'
+    city = user.city if user.city else 'Unknown'
+    bio = user.bio if user.bio else 'No bio'
     
     # Gender display
     gender_display = get_text(user_id, 'btn_girl') if gender == 'girl' else get_text(user_id, 'btn_boy')
@@ -686,22 +728,22 @@ async def browse_profiles(query, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("Profile not found.")
         return
     
-    user_interest = current_user.interest or 'all'
-    user_gender = current_user.gender or 'unknown'
+    user_interest = current_user.interest if current_user.interest else 'all'
+    user_gender = current_user.gender if current_user.gender else 'unknown'
     
     # Find matching profiles
     with get_db_session() as session:
         all_users = session.query(User).filter(
             User.user_id != user_id,
-            User.profile_complete == True,
-            User.active == True
+            User.profile_complete.is_(True),
+            User.active.is_(True)
         ).all()
     
     potential_matches = []
     
     for user in all_users:
-        other_gender = user.gender or 'unknown'
-        other_interest = user.interest or 'all'
+        other_gender = user.gender if user.gender else 'unknown'
+        other_interest = user.interest if user.interest else 'all'
         
         # Check compatibility
         compatible = False
@@ -732,11 +774,11 @@ async def show_profile_for_browsing(query, context: ContextTypes.DEFAULT_TYPE, p
     """Show a profile for browsing"""
     user_id = query.from_user.id
     
-    name = profile_user.name or 'Unknown'
-    age = profile_user.age or 0
-    gender = profile_user.gender or 'unknown'
-    city = profile_user.city or 'Unknown'
-    bio = profile_user.bio or 'No bio'
+    name = profile_user.name if profile_user.name else 'Unknown'
+    age = profile_user.age if profile_user.age else 0
+    gender = profile_user.gender if profile_user.gender else 'unknown'
+    city = profile_user.city if profile_user.city else 'Unknown'
+    bio = profile_user.bio if profile_user.bio else 'No bio'
     
     # Gender display
     gender_display = get_text(user_id, 'btn_girl') if gender == 'girl' else get_text(user_id, 'btn_boy')
@@ -838,6 +880,9 @@ async def show_next_profile_or_menu(query, context: ContextTypes.DEFAULT_TYPE):
 
 async def back_to_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle back to menu button"""
+    if not update.callback_query:
+        return
+        
     query = update.callback_query
     await query.answer()
     
