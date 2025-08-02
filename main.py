@@ -3260,9 +3260,8 @@ async def show_profile_card(query, context, user_id, profile):
     current_index = context.user_data.get('current_profile_index', 0)
     total_profiles = len(context.user_data.get('browsing_profiles', []))
 
-    # Message button row
+    # Message button row - removed direct messaging since users can contact after mutual likes
     message_buttons = [
-        InlineKeyboardButton("💌 Сообщение", callback_data=f"send_message_{profile['user_id']}"),
         InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{profile['user_id']}")
     ]
 
@@ -4835,8 +4834,7 @@ async def show_nd_result(query, context, user_id, result_tuple):
 
     keyboard = [
         [InlineKeyboardButton("❤️", callback_data=f"like_{other_user['user_id']}")],
-        [InlineKeyboardButton("💌 Сообщение", callback_data=f"send_message_{other_user['user_id']}"), 
-         InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{other_user['user_id']}")],
+        [InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{other_user['user_id']}")],
         [InlineKeyboardButton("⏭️ Следующий", callback_data="next_nd_result") if current_index < total_results - 1 else InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu")]
     ]
 
@@ -5050,8 +5048,7 @@ async def show_recommendation_result(query, context, user_id, result_tuple):
 
     keyboard = [
         [InlineKeyboardButton("❤️", callback_data=f"like_{other_user['user_id']}")],
-        [InlineKeyboardButton("💌 Сообщение", callback_data=f"send_message_{other_user['user_id']}"), 
-         InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{other_user['user_id']}")],
+        [InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{other_user['user_id']}")],
         []
     ]
 
@@ -5117,8 +5114,7 @@ async def show_compatibility_result(query, context, user_id, result_tuple):
 
     keyboard = [
         [InlineKeyboardButton("❤️", callback_data=f"like_{other_user['user_id']}")],
-        [InlineKeyboardButton("💌 Сообщение", callback_data=f"send_message_{other_user['user_id']}"), 
-         InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{other_user['user_id']}")],
+        [InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{other_user['user_id']}")],
         []
     ]
 
@@ -5643,9 +5639,8 @@ async def show_mutual_match_profile(query, current_user, matched_user):
         profile_text += f"\n💭 {matched_user['bio']}\n\n"
         profile_text += "✨ Теперь вы можете общаться! Контакт сохранен в ваших лайках."
 
-        # Keep connection-friendly buttons - user can still message and continue browsing
+        # Keep connection-friendly buttons - users can contact directly via Telegram usernames
         keyboard = [
-            [InlineKeyboardButton(f"💌 Написать {matched_name}", callback_data=f"send_message_{matched_user['user_id']}")],
             [InlineKeyboardButton("⏭️ Продолжить просмотр", callback_data="next_profile"),
              InlineKeyboardButton("💌 Мои лайки", callback_data="my_likes")]
         ]
@@ -5700,9 +5695,8 @@ async def show_mutual_match_profile(query, current_user, matched_user):
         # Clean fallback with messaging options
         try:
             await query.message.reply_text(
-                "🎉 Взаимный лайк! Соединение установлено!",
+                "🎉 Взаимный лайк! Соединение установлено!\n\nТеперь вы можете общаться напрямую в Telegram!",
                 reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton(f"💌 Написать {matched_name}", callback_data=f"send_message_{matched_user['user_id']}")],
                     [InlineKeyboardButton("⏭️ Далее", callback_data="next_profile"),
                      InlineKeyboardButton("💌 Мои лайки", callback_data="my_likes")]
                 ])
@@ -5710,9 +5704,8 @@ async def show_mutual_match_profile(query, current_user, matched_user):
         except:
             await safe_edit_message(
                 query,
-                "🎉 Взаимный лайк! Соединение установлено!",
+                "🎉 Взаимный лайк! Соединение установлено!\n\nТеперь вы можете общаться напрямую в Telegram!",
                 InlineKeyboardMarkup([
-                    [InlineKeyboardButton(f"💌 Написать {matched_name}", callback_data=f"send_message_{matched_user['user_id']}")],
                     [InlineKeyboardButton("⏭️ Далее", callback_data="next_profile"),
                      InlineKeyboardButton("💌 Мои лайки", callback_data="my_likes")]
                 ])
@@ -5845,8 +5838,8 @@ async def send_message_with_profile(bot, target_id, sender, message_text, is_mat
             text += f"\n💭 {sender.get('bio', '')}"
             
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton(f"💌 Ответить {sender_name}", callback_data=f"send_message_{sender['user_id']}")],
-                [InlineKeyboardButton("💌 Мои лайки" if lang == 'ru' else "💌 My Likes", callback_data="my_likes")]
+                [InlineKeyboardButton("💌 Мои лайки" if lang == 'ru' else "💌 My Likes", callback_data="my_likes"),
+                 InlineKeyboardButton("🔍 Смотреть профили" if lang == 'ru' else "🔍 Browse Profiles", callback_data="browse_profiles")]
             ])
         else:
             # Show message at top, profile below, NO username revealed for non-mutual likes
@@ -6165,8 +6158,8 @@ async def handle_like_back(query, context, user_id, target_id):
             text += "\n✨ Свяжитесь друг с другом напрямую в Telegram!"
 
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton(f"💌 Написать {target_name}", callback_data=f"send_message_{target_id}")],
-            [InlineKeyboardButton("💌 Мои лайки" if lang == 'ru' else "💌 My Likes", callback_data="my_likes")]
+            [InlineKeyboardButton("💌 Мои лайки" if lang == 'ru' else "💌 My Likes", callback_data="my_likes")],
+            [InlineKeyboardButton("🔍 Смотреть профили" if lang == 'ru' else "🔍 Browse Profiles", callback_data="browse_profiles")]
         ])
 
         # Try to edit message text first, if it fails try caption, if both fail send new message
@@ -6272,7 +6265,6 @@ async def handle_like_incoming_profile(query, context, user_id, target_id):
             query,
             "🎉 Взаимный лайк! Соединение установлено!",
             InlineKeyboardMarkup([[
-                InlineKeyboardButton(f"💌 Написать {target_user['name']}", callback_data=f"send_message_{target_id}"),
                 InlineKeyboardButton("⏭️ Далее", callback_data="next_incoming_like")
             ]])
         )
@@ -6403,9 +6395,8 @@ async def show_detailed_match_profile(query, user_id, target_id):
         profile_text += f"\n💭 {target_user['bio']}\n"
         profile_text += f"\n✨ Вы понравились друг другу!"
 
-        # Simplified buttons without crossed ones
+        # Simplified buttons without crossed ones - users can contact directly via usernames
         keyboard = [
-            [InlineKeyboardButton(f"💌 Написать {target_name}", callback_data=f"send_message_{target_id}")],
             [InlineKeyboardButton("💌 Мои лайки", callback_data="my_likes"),
              InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu")]
         ]
