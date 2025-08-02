@@ -400,6 +400,10 @@ TEXTS = {
         "location_sharing_error": "Пожалуйста, поделитесь местоположением или введите город вручную.",
         "photo_required": "📸 Пожалуйста, сначала отправьте хотя бы одно фото или видео",
         "media_send_prompt": "📸 Отправьте фото, видео или видео-сообщение",
+        "gps_processing_error": "❌ Ошибка обработки GPS. Пожалуйста, введите город вручную:",
+        "profile_missing_field_error": "❌ Ошибка: отсутствует поле '{field}'. Начните заново с /start",
+        "media_upload_error": "❌ Ошибка загрузки медиафайла. Попробуйте еще раз.",
+        "profile_save_error": "❌ Ошибка при сохранении профиля. Попробуйте еще раз или обратитесь в поддержку.",
         "gender_selection_error": "Пожалуйста, выберите пол из предложенных вариантов.",
         "interest_selection_error": "Пожалуйста, выберите из предложенных вариантов.",
         "nd_selection_prompt": "🧠 Выберите ваши нейроотличности:\n\nЭто поможет найти людей с похожим опытом!\nМожно выбрать до 3 особенностей.",
@@ -647,7 +651,11 @@ TEXTS = {
         "change_bio": "✍️ Change Bio",
         "nd_traits": "ND Traits",
         "nd_characteristics_label": "Characteristics",
-        "and_more": " and "
+        "and_more": " and ",
+        "gps_processing_error": "❌ GPS processing error. Please enter city manually:",
+        "profile_missing_field_error": "❌ Error: missing field '{field}'. Start over with /start",
+        "media_upload_error": "❌ Media upload error. Please try again.",
+        "profile_save_error": "❌ Profile save error. Please try again or contact support."
     }
 }
 
@@ -1819,10 +1827,7 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             user = db.get(User.user_id == user_id)
             lang = user.get('lang', 'ru') if user else 'ru'
 
-            if lang == 'en':
-                error_msg = "❌ Error processing GPS location. Please enter your city manually:"
-            else:
-                error_msg = "❌ Ошибка обработки GPS. Пожалуйста, введите город вручную:"
+            error_msg = get_text(user_id, "gps_processing_error")
 
             keyboard = [
                 [KeyboardButton("📍 Попробовать еще раз" if lang == 'ru' else "📍 Try again", request_location=True)],
@@ -2149,7 +2154,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
             await update.message.reply_text(
-                "❌ Ошибка при загрузке медиа. Попробуйте еще раз.",
+                get_text(user_id, "media_upload_error"),
                 reply_markup=reply_markup
             )
         except Exception as e2:
@@ -2176,7 +2181,7 @@ async def save_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for field in required_fields:
             if field not in user_data or not user_data[field]:
                 logger.error(f"Missing or empty required field: {field}")
-                await update.message.reply_text(f"❌ Ошибка: отсутствует поле '{field}'. Начните заново с /start")
+                await update.message.reply_text(get_text(user_id, "profile_missing_field_error").format(field=field))
                 return ConversationHandler.END
 
         # Save to database
@@ -2228,7 +2233,7 @@ async def save_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error saving user profile: {e}")
         await update.message.reply_text(
-            "❌ Ошибка при сохранении профиля. Попробуйте еще раз или обратитесь в поддержку."
+            get_text(user_id, "profile_save_error")
         )
         return ConversationHandler.END
 
