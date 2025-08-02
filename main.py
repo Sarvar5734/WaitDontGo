@@ -3708,14 +3708,25 @@ async def show_previous_profile(query, context, user_id):
         await query.answer("Это первая анкета")
 
 async def start_change_photo(query, context, user_id):
-    """Start photo change process"""
+    """Start photo change process with media upload support"""
     context.user_data['changing_photo'] = True
+    context.user_data['photos'] = []  # Initialize photos array for editing
+    
+    user = db.get_user(user_id)
+    lang = user.get('lang', 'ru') if user else 'ru'
+    
+    if lang == 'en':
+        prompt = "📸 Update your profile pictures!\n\n✨ You can now:\n• Upload up to 3 photos\n• Use a video as your profile picture\n• Use a GIF/animation as your profile picture\n\nSend your media or press Cancel:"
+        cancel_text = "❌ Cancel"
+    else:
+        prompt = "📸 Обновите ваши фото профиля!\n\n✨ Теперь вы можете:\n• Загрузить до 3 фото\n• Использовать видео как фото профиля\n• Использовать GIF/анимацию как фото профиля\n\nОтправьте медиа или нажмите Отмена:"
+        cancel_text = "❌ Отмена"
 
     await safe_edit_message(
         query,
-        get_text(user_id, "new_photo_prompt"),
+        prompt,
         InlineKeyboardMarkup([[
-            InlineKeyboardButton("❌ Отмена", callback_data="profile_settings")
+            InlineKeyboardButton(cancel_text, callback_data="profile_settings")
         ]])
     )
 
@@ -4285,18 +4296,141 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(age_text, reply_markup=reply_markup)
         return AGE
 
-    # Handle photo changes
-    if context.user_data.get('changing_photo') and update.message.photo:
-        photo = update.message.photo[-1]
-        photo_id = photo.file_id
+    # Handle Done button during photo editing
+    if context.user_data.get('changing_photo') and update.message.text:
+        text = update.message.text.strip()
+        if text in ["✅ Готово", "✅ Done", get_text(user_id, "btn_done")]:
+            # Save whatever photos we have
+            if context.user_data.get("photos"):
+                photos_list = context.user_data["photos"]
+                db.create_or_update_user(user_id, {
+                    'photos': photos_list,
+                    'photo_id': photos_list[0],
+                    'media_type': 'photo',
+                    'media_id': photos_list[0]
+                })
 
-        # Update user's photo
-        db.update({
-            'photos': [photo_id],
-            'photo_id': photo_id,
-            'media_id': photo_id,
-            'media_type': 'photo'
-        }, Query().user_id == user_id)
+            context.user_data.pop('changing_photo', None)
+            context.user_data.pop('photos', None)
+            
+            lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
+            success_msg = "✅ Photos updated!" if lang == 'en' else "✅ Фото обновлены!"
+            await update.message.reply_text(
+                success_msg,
+                reply_markup=get_main_menu(user_id)
+            )
+            return
+    
+    # Handle photo changes for existing users
+    if context.user_data.get('changing_photo'):
+        if update.message.photo:
+            # Handle multiple photos during editing
+            if "photos" not in context.user_data:
+                context.user_data["photos"] = []
+            
+            photo = update.message.photo[-1]
+            photo_id = photo.file_id
+            photos_list = context.user_data["photos"]
+            
+            if len(photos_list) < 3:
+                photos_list.append(photo_id)
+                context.user_data["media_type"] = "photo"
+                context.user_data["media_id"] = photo_id
+                
+                photos_count = len(photos_list)
+                lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
+                
+                if photos_count < 3:
+                    keyboard = [
+                        [KeyboardButton(get_text(user_id, "btn_done"))],
+                        [KeyboardButton(get_text(user_id, "btn_skip_remaining"))],
+                        [KeyboardButton(get_text(user_id, "back_button"))]
+                    ]
+                    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+                    
+                    if lang == 'en':
+                        photo_msg = f"✅ Photo {photos_count}/3 added!\n\nSend more photos or press 'Done':"
+                    else:
+                        photo_msg = f"✅ Фото {photos_count}/3 добавлено!\n\nОтправьте еще фото или нажмите 'Готово':"
+                    
+                    await update.message.reply_text(photo_msg, reply_markup=reply_markup)
+                    return
+                else:
+                    # Save all photos
+                    db.create_or_update_user(user_id, {
+                        'photos': photos_list,
+                        'photo_id': photos_list[0],
+                        'media_type': 'photo',
+                        'media_id': photos_list[0]
+                    })
+            else:
+                # Already have 3 photos
+                lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
+                max_msg = "⚠️ Maximum 3 photos. Press 'Done' to continue." if lang == 'en' else "⚠️ Максимум 3 фото. Нажмите 'Готово' чтобы продолжить."
+                await update.message.reply_text(max_msg)
+                return
+        
+        elif update.message.video:
+            # Handle video profile picture
+            video = update.message.video
+            db.create_or_update_user(user_id, {
+                'photos': [],
+                'photo_id': video.file_id,
+                'media_type': 'video',
+                'media_id': video.file_id
+            })
+            lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
+            success_msg = "✅ Video added!" if lang == 'en' else "✅ Видео добавлено!"
+            await update.message.reply_text(success_msg)
+        
+        elif update.message.animation:
+            # Handle GIF profile picture
+            animation = update.message.animation
+            db.create_or_update_user(user_id, {
+                'photos': [],
+                'photo_id': animation.file_id,
+                'media_type': 'animation',
+                'media_id': animation.file_id
+            })
+            lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
+            success_msg = "✅ GIF added!" if lang == 'en' else "✅ GIF добавлен!"
+            await update.message.reply_text(success_msg)
+        
+        elif update.message.video_note:
+            # Handle video note profile picture
+            video_note = update.message.video_note
+            db.create_or_update_user(user_id, {
+                'photos': [],
+                'photo_id': video_note.file_id,
+                'media_type': 'video_note',
+                'media_id': video_note.file_id
+            })
+            lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
+            success_msg = "✅ Video message added!" if lang == 'en' else "✅ Видео-сообщение добавлено!"
+            await update.message.reply_text(success_msg)
+        
+        # If we have photos or media, finalize the change
+        if context.user_data.get("photos") or update.message.photo or update.message.video or update.message.animation or update.message.video_note:
+            # Save photos if we have them
+            if context.user_data.get("photos"):
+                photos_list = context.user_data["photos"]
+                db.create_or_update_user(user_id, {
+                    'photos': photos_list,
+                    'photo_id': photos_list[0],
+                    'media_type': 'photo',
+                    'media_id': photos_list[0]
+                })
+
+            context.user_data.pop('changing_photo', None)
+            context.user_data.pop('photos', None)
+            
+            lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
+            success_msg = "✅ Photos updated!" if lang == 'en' else "✅ Фото обновлены!"
+            await update.message.reply_text(
+                success_msg,
+                reply_markup=get_main_menu(user_id)
+            )
+            return
 
         context.user_data.pop('changing_photo', None)
         await update.message.reply_text(
