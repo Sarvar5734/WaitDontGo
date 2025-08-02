@@ -262,7 +262,7 @@ TEXTS = {
         "questionnaire_city": "📍 Поделитесь вашим местоположением или введите город:",
         "questionnaire_name": "Как к вам обращаться?",
         "questionnaire_bio": "Расскажите о себе и о том, кого хотите найти. Это поможет лучше подобрать совпадения.",
-        "questionnaire_photo": "Теперь отправьте до 3 фото или запишите видео 👍 (до 15 сек)",
+        "questionnaire_photo": "Теперь отправьте до 3 фото, видео или GIF 👍 (видео до 15 сек)",
         "profile_preview": "Вот как выглядит ваша анкета:",
         "profile_correct": "Всё правильно?",
         "btn_girls": "Девушки",
@@ -465,7 +465,7 @@ TEXTS = {
         "questionnaire_city": "📍 Share your location or enter your city:",
         "questionnaire_name": "What should I call you?",
         "questionnaire_bio": "Tell me about yourself and who you want to find. This will help better match you.",
-        "questionnaire_photo": "Now send up to 3 photos or record a video 👍 (up to 15 sec)",
+        "questionnaire_photo": "Now send up to 3 photos, video, or GIF 👍 (video up to 15 sec)",
         "profile_preview": "This is how your profile looks:",
         "profile_correct": "Is everything correct?",
         "btn_girls": "Girls",
@@ -2129,17 +2129,21 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 photos_count = len(photos_list)
 
                 if photos_count < 3:
-                    # Ask for more photos
+                    # Ask for more photos with localized text
                     keyboard = [
                         [KeyboardButton(get_text(user_id, "btn_done"))],
                         [KeyboardButton(get_text(user_id, "btn_skip_remaining"))],
                         [KeyboardButton(get_text(user_id, "back_button"))]
                     ]
                     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-                    await update.message.reply_text(
-                        f"✅ Фото {photos_count}/3 добавлено!\n\nОтправьте еще фото или нажмите кнопку:",
-                        reply_markup=reply_markup
-                    )
+                    
+                    lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
+                    if lang == 'en':
+                        photo_msg = f"✅ Photo {photos_count}/3 added!\n\nSend more photos or press a button:"
+                    else:
+                        photo_msg = f"✅ Фото {photos_count}/3 добавлено!\n\nОтправьте еще фото или нажмите кнопку:"
+                    
+                    await update.message.reply_text(photo_msg, reply_markup=reply_markup)
                     return PHOTO
                 else:
                     # All 3 photos uploaded, proceed to save
@@ -2152,10 +2156,10 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                     [KeyboardButton(get_text(user_id, "back_button"))]
                 ]
                 reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-                await update.message.reply_text(
-                    "⚠️ Максимум 3 фото. Нажмите 'Готово' чтобы продолжить.",
-                    reply_markup=reply_markup
-                )
+                
+                lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
+                max_msg = "⚠️ Maximum 3 photos. Press 'Done' to continue." if lang == 'en' else "⚠️ Максимум 3 фото. Нажмите 'Готово' чтобы продолжить."
+                await update.message.reply_text(max_msg, reply_markup=reply_markup)
                 return PHOTO
 
         # Handle video uploads
@@ -2165,7 +2169,9 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             context.user_data["media_id"] = video.file_id
             context.user_data["photos"] = []  # Clear photos array when using video
             
-            await update.message.reply_text("✅ Видео добавлено!")
+            lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
+            success_msg = "✅ Video added!" if lang == 'en' else "✅ Видео добавлено!"
+            await update.message.reply_text(success_msg)
             await save_user_profile(update, context)
             return ConversationHandler.END
 
@@ -2176,7 +2182,22 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             context.user_data["media_id"] = video_note.file_id
             context.user_data["photos"] = []  # Clear photos array when using video note
             
-            await update.message.reply_text("✅ Видео-сообщение добавлено!")
+            lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
+            success_msg = "✅ Video message added!" if lang == 'en' else "✅ Видео-сообщение добавлено!"
+            await update.message.reply_text(success_msg)
+            await save_user_profile(update, context)
+            return ConversationHandler.END
+
+        # Handle GIF/animation uploads (NEW FEATURE)
+        elif update.message.animation:
+            animation = update.message.animation
+            context.user_data["media_type"] = "animation"
+            context.user_data["media_id"] = animation.file_id
+            context.user_data["photos"] = []  # Clear photos array when using animation
+            
+            lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
+            success_msg = "✅ GIF added!" if lang == 'en' else "✅ GIF добавлен!"
+            await update.message.reply_text(success_msg)
             await save_user_profile(update, context)
             return ConversationHandler.END
 
@@ -3367,6 +3388,83 @@ async def apply_interest_filter(query, context, user_id):
     context.user_data['use_filters'] = True
     await start_browsing_profiles(query, context, user_id)
 
+async def send_profile_media(query, profile_text, keyboard, profile):
+    """Send profile with appropriate media type (photo, video, GIF)"""
+    try:
+        media_type = profile.get('media_type', 'photo')
+        media_id = profile.get('media_id', '')
+        photos = profile.get('photos', [])
+        
+        # Priority: photos array > single media > fallback to text
+        if photos:
+            await query.message.reply_photo(
+                photo=photos[0],
+                caption=profile_text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+        elif media_id:
+            if media_type == 'video':
+                await query.message.reply_video(
+                    video=media_id,
+                    caption=profile_text,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode='Markdown'
+                )
+            elif media_type == 'animation':
+                await query.message.reply_animation(
+                    animation=media_id,
+                    caption=profile_text,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode='Markdown'
+                )
+            elif media_type == 'video_note':
+                # Video notes don't support captions, so send separately
+                await query.message.reply_video_note(video_note=media_id)
+                await query.message.reply_text(
+                    profile_text,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode='Markdown'
+                )
+            else:
+                # Default to photo for legacy compatibility
+                await query.message.reply_photo(
+                    photo=media_id,
+                    caption=profile_text,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode='Markdown'
+                )
+        else:
+            # No media, send text only
+            await query.message.reply_text(
+                profile_text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+        
+        # Clean up the query message
+        try:
+            await query.delete_message()
+        except:
+            pass
+            
+    except Exception as e:
+        logger.error(f"Error sending profile media: {e}")
+        # Fallback to text only
+        try:
+            await query.message.reply_text(
+                profile_text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+            await query.delete_message()
+        except:
+            await query.edit_message_text(
+                profile_text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+
 async def show_profile_card(query, context, user_id, profile):
     """Show a profile card with navigation matching the desired interface"""
     current_user = db.get_user(user_id)
@@ -3448,25 +3546,12 @@ async def show_profile_card(query, context, user_id, profile):
     # Don't delete previous message - just send new one
     # This way old profiles stay visible in chat history
     
-    if photos:
-        try:
-            # Send new photo message
-            await query.message.reply_photo(
-                photo=photos[0],
-                caption=profile_text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
-            )
-        except Exception as e:
-            logger.error(f"Error sending photo: {e}")
-            # Fallback to text only
-            await query.message.reply_text(
-                profile_text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
-            )
-    else:
-        # No photos - send as text message
+    # Send profile with appropriate media type (using new unified function)
+    try:
+        await send_profile_media(query, profile_text, keyboard, profile)
+    except Exception as e:
+        logger.error(f"Error in send_profile_media: {e}")
+        # Ultimate fallback - just send text
         await query.message.reply_text(
             profile_text,
             reply_markup=InlineKeyboardMarkup(keyboard),

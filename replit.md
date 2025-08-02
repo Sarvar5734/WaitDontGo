@@ -96,6 +96,13 @@ Preferred communication style: Simple, everyday language.
   - Updated all db.update/remove operations to proper PostgreSQL methods (create_or_update_user, delete_user)
   - Bot now runs with 100% PostgreSQL consistency and zero legacy database dependencies
   - All features fully operational: profile viewing, browsing, matching, settings, translation system
+- **ENHANCED MEDIA UPLOAD SYSTEM**: Implemented comprehensive video/GIF profile picture support (August 2, 2025)
+  - Added GIF/animation upload support during registration with proper media_type handling
+  - Created unified send_profile_media() function to display all media types (photo/video/animation/video_note)
+  - Fixed multiple photo upload progress tracking with bilingual messaging
+  - Enhanced profile display to properly show videos and GIFs alongside photos
+  - Updated registration prompts to mention GIF support: "Send up to 3 photos, video, or GIF"
+  - All profile cards now correctly display user's chosen media type (photos, videos, or GIFs)
 
 ### Design Patterns
 
