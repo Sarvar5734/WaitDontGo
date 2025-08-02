@@ -18,13 +18,13 @@ Preferred communication style: Simple, everyday language.
 - Configures and starts the Telegram bot application
 - Handler registration and error handling
 
-**Database Layer** (`database.py`)
-- **Database**: TinyDB JSON-based database with atomic operations
-- **Models**: User and Feedback models with comprehensive fields
-- **Operations**: Atomic database operations preventing race conditions
-- **Features**: Matching algorithms, like/pass interactions, user statistics
-- **Schema**: JSON fields for arrays (photos, likes, matches, traits)
-- **Concurrency Safety**: All critical operations use atomic callback functions
+**Database Layer** (`models.py`, `database_manager.py`, `db_operations.py`)
+- **Database**: PostgreSQL with SQLAlchemy ORM (migrated from TinyDB August 2, 2025)
+- **Models**: User, Feedback, AISession models with comprehensive fields and relationships
+- **Operations**: Full CRUD operations with session management and transaction safety
+- **Features**: Advanced querying, indexing, matching algorithms, user statistics
+- **Schema**: Proper relational structure with JSON fields for arrays (photos, likes, traits)
+- **Scalability**: Supports thousands of users with concurrent access and proper locking
 
 **Translation System** (`translations.py`)
 - **Centralized Translations**: All bot text in TEXTS dictionary
@@ -53,6 +53,12 @@ Preferred communication style: Simple, everyday language.
 - **Neurodivergent Traits**: Comprehensive ND trait translations in multiple languages
 
 ### Recent Changes (August 2025)
+- **MAJOR DATABASE MIGRATION**: Successfully migrated from TinyDB to PostgreSQL (August 2, 2025)
+  - Implemented SQLAlchemy models with proper relationships and indexing
+  - Created automated migration system preserving all existing user data
+  - Added compatibility layer for seamless transition from TinyDB operations
+  - Database now supports thousands of concurrent users with proper transaction handling
+  - Enhanced performance and reliability for production scaling
 - **Restored Working Version**: Implemented user's working main.py with comprehensive features
 - **Translation-Focused Structure**: Maintained centralized, easy-to-manage translation system
 - **Complete Feature Set**: Full dating bot functionality with ND matching, statistics, messaging
@@ -90,10 +96,12 @@ Preferred communication style: Simple, everyday language.
 - `socketserver` - Network server framework
 - `logging` - Application logging and monitoring
 
-### Database Schema
-- **Users Table**: Complete user profiles with neurodivergent traits, preferences, and interaction history
-- **Feedback Table**: User feedback and support requests
-- **JSON Fields**: Flexible storage for arrays (photos, likes, matches, traits)
+### Database Schema (PostgreSQL)
+- **Users Table**: Complete user profiles with indexed fields, neurodivergent traits, preferences, and interaction history
+- **Feedback Table**: User feedback and support requests with timestamps and resolution tracking
+- **AI Sessions Table**: AI usage tracking and rate limiting
+- **JSON Fields**: Optimized storage for arrays (photos, likes, matches, traits) with PostgreSQL JSON support
+- **Indexes**: Strategic indexing on user_id, created_at, and frequently queried fields for performance
 
 ### Hosting Platform Integration
 - Keep-alive service designed for platforms like Replit, Heroku, or similar

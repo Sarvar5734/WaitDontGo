@@ -25,11 +25,9 @@ from telegram.ext import (
     ApplicationBuilder, ContextTypes, CommandHandler, 
     MessageHandler, CallbackQueryHandler, ConversationHandler, filters
 )
+from tinydb import TinyDB, Query
 from dotenv import load_dotenv
 from keep_alive import start_keep_alive
-from database_manager import db_manager
-from models import User as UserModel
-from db_operations import db, Query
 
 load_dotenv()
 
@@ -47,18 +45,12 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN or BOT_TOKEN environment variable not set")
 
-# Migrate data from TinyDB on startup
-try:
-    migration_success = db_manager.migrate_from_tinydb()
-    if migration_success:
-        logger.info("Successfully migrated data from TinyDB to PostgreSQL")
-    else:
-        logger.warning("Data migration from TinyDB failed or partially completed")
-except Exception as e:
-    logger.error(f"Migration error: {e}")
-
-# Legacy TinyDB compatibility
+# Database
+db = TinyDB("db.json")
 User = Query()
+
+# Feedback database
+feedback_db = TinyDB("feedback.json")
 
 # AI session tracking
 ai_sessions = {}
@@ -1284,26 +1276,31 @@ async def get_city_from_coordinates(latitude: float, longitude: float) -> str:
         logger.error(f"Error in reverse geocoding: {e}")
         return "Unknown Location"
 
-def is_profile_complete(user: UserModel) -> bool:
+def is_profile_complete(user: dict) -> bool:
     """Check if user profile is complete"""
-    if not user:
+    if not user or not isinstance(user, dict):
         return False
         
+    required_fields = ['name', 'age', 'gender', 'interest', 'city', 'bio']
+
     # Check basic fields
-    required_fields = [user.name, user.age, user.gender, user.interest, user.city, user.bio]
     for field in required_fields:
-        if not field or (isinstance(field, str) and field.strip() == ''):
+        field_value = user.get(field)
+        if not field_value or (isinstance(field_value, str) and field_value.strip() == ''):
             return False
 
     # Check media - either media_id or photos array (must have actual content)
-    has_media = (user.media_id and user.media_id.strip()) or (user.photos and len(user.photos) > 0 and user.photos[0])
+    media_id = user.get('media_id')
+    photos = user.get('photos', [])
+    
+    has_media = (media_id and media_id.strip()) or (photos and len(photos) > 0 and photos[0])
 
     return has_media
 
 def get_text(user_id: int, key: str) -> str:
     """Get localized text for user"""
-    user = db_manager.get_user(user_id)
-    lang = user.lang if user else "ru"
+    user = db.get(Query().user_id == user_id)
+    lang = user.get("lang", "ru") if user else "ru"
     return TEXTS.get(lang, TEXTS["ru"]).get(key, key)
 
 def get_main_menu(user_id: int) -> InlineKeyboardMarkup:
