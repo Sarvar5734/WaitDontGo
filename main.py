@@ -4500,8 +4500,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Handle city changes
     if context.user_data.get('changing_city'):
-        user = db.get(Query().user_id == user_id)
+        user = db.get_user(user_id)
         current_lang = user.get('lang', 'ru') if user else 'ru'
+        logger.info(f"🏙️ Processing city change for user {user_id}, current lang: {current_lang}")
         
         # Handle GPS location for city change
         if update.message.location:
@@ -4528,8 +4529,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 if new_city and new_city != "Unknown Location":
                     # Update city in database
-                    db.update({'city': new_city, 'latitude': latitude, 'longitude': longitude}, Query().user_id == user_id)
+                    db.create_or_update_user(user_id, {'city': new_city, 'latitude': latitude, 'longitude': longitude})
                     context.user_data.pop('changing_city', None)
+                    logger.info(f"✅ City updated to {new_city} for user {user_id} via GPS")
 
                     if current_lang == 'en':
                         success_message = f"✅ City updated to: {new_city}"
@@ -4602,8 +4604,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Handle actual city name input
             elif text not in ["📍 Поделиться GPS", "📍 Share GPS Location", "📍 Попробовать еще раз", "📍 Try GPS again", "📍 Использовать GPS", "📍 Use GPS"]:
                 new_city = normalize_city(text)
-                db.update({'city': new_city}, Query().user_id == user_id)
+                db.create_or_update_user(user_id, {'city': new_city})
                 context.user_data.pop('changing_city', None)
+                logger.info(f"✅ City updated to {new_city} for user {user_id} via manual input")
 
                 if current_lang == 'en':
                     success_message = f"✅ City updated to: {new_city}"
