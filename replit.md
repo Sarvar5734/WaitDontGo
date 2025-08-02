@@ -44,12 +44,19 @@ Preferred communication style: Simple, everyday language.
 - **Implementation**: Custom HTTP server for health checks
 - **Features**: Threaded server, logging integration
 
+### Translation Management
+- **Centralized System**: All translations in TEXTS dictionary within main.py
+- **Easy Addition**: Simple key-value structure for adding new languages
+- **Complete Coverage**: 200+ translation keys covering all bot functionality
+- **Multilingual Cities**: Advanced city normalization with international spellings
+- **Neurodivergent Traits**: Comprehensive ND trait translations in multiple languages
+
 ### Recent Changes (August 2025)
-- **Complete Code Restructure**: Separated monolithic main.py into 4 focused modules
-- **Enhanced Translation System**: Centralized, easy-to-manage translation structure
-- **Improved Database Operations**: Dedicated database module with optimized queries
-- **Modular Handlers**: All bot handlers organized by functionality
-- **Simplified Main Entry**: Clean main.py with just application setup and handler registration
+- **Restored Working Version**: Implemented user's working main.py with comprehensive features
+- **Translation-Focused Structure**: Maintained centralized, easy-to-manage translation system
+- **Complete Feature Set**: Full dating bot functionality with ND matching, statistics, messaging
+- **Advanced City Support**: Global city database with typo correction and multiple languages
+- **User-Friendly Design**: Well-organized code structure optimized for translation management
 
 ### Design Patterns
 
