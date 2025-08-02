@@ -62,8 +62,7 @@ Preferred communication style: Simple, everyday language.
 - **Fixed Code Redundancy**: Removed duplicate send_message_with_profile functions
 - **Complete Button Coverage**: All profile cards now offer both text (💌) and video (🎥) messaging options
 - **CRITICAL BUG FIX**: Fixed dangerous race condition vulnerabilities in database operations (August 2, 2025)
-- **UI IMPROVEMENT**: Removed unnecessary "💌 Написать" (Write) and "🎥 Видео" (Video) buttons after mutual connections since users can contact each other directly via Telegram usernames (August 2, 2025)
-- **STREAMLINED UX**: Profile browsing now focuses on the essential like/heart action, eliminating redundant messaging options (August 2, 2025)
+- **UI IMPROVEMENT**: Removed unnecessary "💌 Написать" (Write) buttons after mutual connections since users can contact each other directly via Telegram usernames (August 2, 2025)
 
 ### Design Patterns
 
