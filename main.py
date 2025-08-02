@@ -1349,7 +1349,7 @@ def initialize_user_ratings():
     users = db.all()
     for user_data in users:
         if 'ratings' not in user_data:
-            db.update({'ratings': [], 'total_rating': 0.0, 'rating_count': 0}, User.user_id == user_data['user_id'])
+            db.create_or_update_user(user_data['user_id'], {'ratings': [], 'total_rating': 0.0, 'rating_count': 0})
 
 def add_rating(rated_user_id, rating_value, rater_user_id):
     """Add a rating for a user"""
@@ -2553,7 +2553,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         elif data.startswith("interest_"):
             interest = data.split("interest_")[1]
-            db.update({'interest': interest}, User.user_id == user_id)
+            db.create_or_update_user(user_id, {'interest': interest})
             await query.edit_message_text(
                 "✅ Предпочтения обновлены!",
                 reply_markup=InlineKeyboardMarkup([[
@@ -2570,7 +2570,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Keep the language setting but clear all other profile data
             user_lang = user.get('lang', 'ru') if user else 'ru'
 
-            db.update({
+            db.create_or_update_user(user_id, {
                 'name': '',
                 'age': '',
                 'gender': '',
@@ -2584,7 +2584,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'nd_traits': [],
                 'nd_symptoms': [],
                 'lang': user_lang
-            }, User.user_id == user_id)
+            })
 
             # Clear conversation data
             context.user_data.clear()
@@ -2612,7 +2612,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 delete_message = "🗑️ Аккаунт удален.\n\nДо свидания! Используйте /start если захотите вернуться."
             
-            db.remove(User.user_id == user_id)
+            db.delete_user(user_id)
             await query.edit_message_text(delete_message)
         elif data == "feedback_complaint":
             await start_feedback(query, context, user_id, "complaint")
@@ -3562,14 +3562,13 @@ async def handle_pass_profile(query, context, user_id):
         current_profile = profiles[current_index]
         target_id = current_profile['user_id']
         
-        # Add to declined likes so it won't show again - ATOMIC
-        def atomic_decline_add_profile(doc):
-            declined_likes = doc.get('declined_likes', [])
+        # Add to declined likes so it won't show again
+        user = db.get_user(user_id)
+        if user:
+            declined_likes = user.get('declined_likes', [])
             if target_id not in declined_likes:
                 declined_likes.append(target_id)
-            return {**doc, 'declined_likes': declined_likes}
-        
-        db.update(atomic_decline_add_profile, User.user_id == user_id)
+                db.create_or_update_user(user_id, {'declined_likes': declined_likes})
     
     # Send pass confirmation as new message
     await query.message.reply_text(get_text(user_id, "profile_passed"))
@@ -4605,7 +4604,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Handle city change from settings
     if context.user_data.get('changing_city_setting') and update.message.text:
         new_city = normalize_city(update.message.text.strip())
-        db.update({'city': new_city}, User.user_id == user_id)
+        db.create_or_update_user(user_id, {'city': new_city})
 
         context.user_data.pop('changing_city_setting', None)
         await update.message.reply_text(
@@ -4934,7 +4933,7 @@ async def toggle_nd_trait(query, user_id, trait_key):
             await query.answer("❌ Можно выбрать максимум 3 особенности")
             return
 
-    db.update({'nd_traits': current_traits}, User.user_id == user_id)
+    db.create_or_update_user(user_id, {'nd_traits': current_traits})
     await show_add_traits_menu(query, user_id)
 
 async def toggle_nd_symptom(query, user_id, symptom_key):
@@ -4954,7 +4953,7 @@ async def toggle_nd_symptom(query, user_id, symptom_key):
             await query.answer("❌ Можно выбрать максимум 3 характеристики")
             return
 
-    db.update({'nd_symptoms': current_symptoms}, User.user_id == user_id)
+    db.create_or_update_user(user_id, {'nd_symptoms': current_symptoms})
     await show_detailed_symptoms_menu(query, user_id)
 
 async def show_add_traits_menu(query, user_id):
@@ -5589,7 +5588,7 @@ async def change_language(query, user_id):
 
 async def set_language(query, user_id, lang):
     """Set user language"""
-    db.update({'lang': lang}, User.user_id == user_id)
+    db.create_or_update_user(user_id, {'lang': lang})
 
     # Show language confirmation message in the selected language
     if lang == 'ru':
