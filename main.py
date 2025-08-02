@@ -3254,7 +3254,8 @@ async def show_profile_card(query, context, user_id, profile):
 
     # Message button row
     message_buttons = [
-        InlineKeyboardButton("💌 Отправить сообщение", callback_data=f"send_message_{profile['user_id']}")
+        InlineKeyboardButton("💌 Сообщение", callback_data=f"send_message_{profile['user_id']}"),
+        InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{profile['user_id']}")
     ]
 
     # Main navigation row: Back, Heart, Next (always show all three)
@@ -4825,7 +4826,8 @@ async def show_nd_result(query, context, user_id, result_tuple):
 
     keyboard = [
         [InlineKeyboardButton("❤️", callback_data=f"like_{other_user['user_id']}")],
-        [InlineKeyboardButton("💌 Написать", callback_data=f"send_message_{other_user['user_id']}")],
+        [InlineKeyboardButton("💌 Сообщение", callback_data=f"send_message_{other_user['user_id']}"), 
+         InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{other_user['user_id']}")],
         [InlineKeyboardButton("⏭️ Следующий", callback_data="next_nd_result") if current_index < total_results - 1 else InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu")]
     ]
 
@@ -5039,7 +5041,8 @@ async def show_recommendation_result(query, context, user_id, result_tuple):
 
     keyboard = [
         [InlineKeyboardButton("❤️", callback_data=f"like_{other_user['user_id']}")],
-        [InlineKeyboardButton("💌 Написать", callback_data=f"send_message_{other_user['user_id']}")],
+        [InlineKeyboardButton("💌 Сообщение", callback_data=f"send_message_{other_user['user_id']}"), 
+         InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{other_user['user_id']}")],
         []
     ]
 
@@ -5105,7 +5108,8 @@ async def show_compatibility_result(query, context, user_id, result_tuple):
 
     keyboard = [
         [InlineKeyboardButton("❤️", callback_data=f"like_{other_user['user_id']}")],
-        [InlineKeyboardButton("💌 Написать", callback_data=f"send_message_{other_user['user_id']}")],
+        [InlineKeyboardButton("💌 Сообщение", callback_data=f"send_message_{other_user['user_id']}"), 
+         InlineKeyboardButton("🎥 Видео", callback_data=f"send_video_{other_user['user_id']}")],
         []
     ]
 
@@ -5705,70 +5709,7 @@ async def show_mutual_match_profile(query, current_user, matched_user):
                 ])
             )
 
-async def send_message_with_profile(bot, target_id, sender, message_text, is_match):
-    """Send message with sender's profile to target user"""
-    try:
-        sender_name = sender.get('name', 'Неизвестный')
-        
-        # Send the message text first
-        await bot.send_message(
-            chat_id=target_id,
-            text=f"💌 Сообщение от {sender_name}:\n\n{message_text}"
-        )
-        
-        # Send sender's profile
-        profile_text = f"👤 {sender_name}, {sender.get('age', '?')} лет\n"
-        profile_text += f"📍 {sender.get('city', 'Неизвестно')}\n"
-        
-        # Add ND traits if available
-        nd_traits = sender.get('nd_traits', [])
-        if nd_traits:
-            traits_dict = ND_TRAITS.get('ru', ND_TRAITS['ru'])
-            trait_names = [traits_dict.get(trait, trait) for trait in nd_traits if trait in traits_dict and trait != 'none']
-            if trait_names:
-                profile_text += f"🧠 ND: {', '.join(trait_names)}\n"
-        
-        profile_text += f"\n💭 {sender.get('bio', 'Нет описания')}"
-        
-        if is_match:
-            # Show contact info for mutual matches
-            sender_username = sender.get('username', '')
-            if sender_username:
-                profile_text += f"\n\n📱 Telegram: @{sender_username}"
-            else:
-                profile_text += f"\n\n📱 Telegram: (username не указан)"
-            
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton(f"💌 Написать {sender_name}", callback_data=f"send_message_{sender['user_id']}")],
-                [InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu")]
-            ])
-        else:
-            # Show like back buttons for non-mutual
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("❤️ Лайк назад", callback_data=f"like_back_{sender['user_id']}")],
-                [InlineKeyboardButton("👎 Пропустить", callback_data=f"decline_like_{sender['user_id']}")]
-            ])
-        
-        # Send with photo if available
-        photos = sender.get('photos', [])
-        if photos:
-            await bot.send_photo(
-                chat_id=target_id,
-                photo=photos[0],
-                caption=profile_text,
-                reply_markup=keyboard
-            )
-        else:
-            await bot.send_message(
-                chat_id=target_id,
-                text=profile_text,
-                reply_markup=keyboard
-            )
-            
-        logger.info(f"Message with profile sent from {sender['user_id']} to {target_id}")
-        
-    except Exception as e:
-        logger.error(f"Error sending message with profile: {e}")
+
 
 async def send_mutual_match_notification(user_id, application, matched_user):
     """Send mutual match notification with matched user's profile and revealed usernames"""
