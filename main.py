@@ -7106,16 +7106,33 @@ def main():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_age)],
-            GENDER: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_gender)],
-            INTEREST: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_interest)],
+            AGE: [
+                CallbackQueryHandler(handle_callback),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_age)
+            ],
+            GENDER: [
+                CallbackQueryHandler(handle_callback),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_gender)
+            ],
+            INTEREST: [
+                CallbackQueryHandler(handle_callback),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_interest)
+            ],
             CITY: [
+                CallbackQueryHandler(handle_callback),
                 MessageHandler(filters.LOCATION, handle_city),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_city)
             ],
-            NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name)],
-            BIO: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_bio)],
+            NAME: [
+                CallbackQueryHandler(handle_callback),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name)
+            ],
+            BIO: [
+                CallbackQueryHandler(handle_callback),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_bio)
+            ],
             PHOTO: [
+                CallbackQueryHandler(handle_callback),
                 MessageHandler(filters.PHOTO, handle_photo),
                 MessageHandler(filters.VIDEO, handle_photo),
                 MessageHandler(filters.VIDEO_NOTE, handle_photo),
