@@ -19,11 +19,12 @@ Preferred communication style: Simple, everyday language.
 - Handler registration and error handling
 
 **Database Layer** (`database.py`)
-- **Database**: PostgreSQL with SQLAlchemy ORM
+- **Database**: TinyDB JSON-based database with atomic operations
 - **Models**: User and Feedback models with comprehensive fields
-- **Operations**: Database session management, user CRUD operations
+- **Operations**: Atomic database operations preventing race conditions
 - **Features**: Matching algorithms, like/pass interactions, user statistics
 - **Schema**: JSON fields for arrays (photos, likes, matches, traits)
+- **Concurrency Safety**: All critical operations use atomic callback functions
 
 **Translation System** (`translations.py`)
 - **Centralized Translations**: All bot text in TEXTS dictionary
@@ -60,6 +61,7 @@ Preferred communication style: Simple, everyday language.
 - **Enhanced Messaging System**: Added comprehensive video messaging functionality across all profile types
 - **Fixed Code Redundancy**: Removed duplicate send_message_with_profile functions
 - **Complete Button Coverage**: All profile cards now offer both text (💌) and video (🎥) messaging options
+- **CRITICAL BUG FIX**: Fixed dangerous race condition vulnerabilities in database operations (August 2, 2025)
 
 ### Design Patterns
 

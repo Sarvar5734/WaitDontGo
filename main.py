@@ -1277,39 +1277,48 @@ def get_user_rating(user_id):
     return {'rating': 0.0, 'count': 0}
 
 async def add_like(from_user_id, to_user_id):
-    """Add a like from one user to another"""
+    """Add a like from one user to another - ATOMIC operation to prevent race conditions"""
     try:
-        # Update target user's received likes
-        target_user = db.get(Query().user_id == to_user_id)
-        if target_user:
-            received_likes = target_user.get('received_likes', [])
-            unnotified_likes = target_user.get('unnotified_likes', [])
-
+        # ATOMIC UPDATE: Use db.update with callback to prevent race conditions
+        def update_target_likes(doc):
+            """Atomic callback to safely update target user's likes"""
+            received_likes = doc.get('received_likes', [])
+            unnotified_likes = doc.get('unnotified_likes', [])
+            
+            # Only add if not already present (idempotent operation)
             if from_user_id not in received_likes:
                 received_likes.append(from_user_id)
                 unnotified_likes.append(from_user_id)
-
-                db.update({
+                logger.info(f"✅ Added like from {from_user_id} to {to_user_id}")
+                return {
+                    **doc,
                     'received_likes': received_likes,
                     'unnotified_likes': unnotified_likes
-                }, Query().user_id == to_user_id)
-                logger.info(f"✅ Added like from {from_user_id} to {to_user_id}")
+                }
             else:
                 logger.info(f"⚠️ Like from {from_user_id} to {to_user_id} already exists")
-        else:
-            logger.error(f"❌ Target user {to_user_id} not found in database")
+                return doc
 
-        # Update sender's sent likes for statistics
-        sender_user = db.get(Query().user_id == from_user_id)
-        if sender_user:
-            sent_likes = sender_user.get('sent_likes', [])
+        def update_sender_likes(doc):
+            """Atomic callback to safely update sender's likes"""
+            sent_likes = doc.get('sent_likes', [])
+            
+            # Only add if not already present (idempotent operation)
             if to_user_id not in sent_likes:
                 sent_likes.append(to_user_id)
-                db.update({'sent_likes': sent_likes}, Query().user_id == from_user_id)
                 logger.info(f"✅ Updated sent likes for user {from_user_id}")
+                return {**doc, 'sent_likes': sent_likes}
             else:
                 logger.info(f"⚠️ Sent like from {from_user_id} to {to_user_id} already exists")
-        else:
+                return doc
+
+        # Perform atomic updates
+        target_updated = db.update(update_target_likes, Query().user_id == to_user_id)
+        if not target_updated:
+            logger.error(f"❌ Target user {to_user_id} not found in database")
+            
+        sender_updated = db.update(update_sender_likes, Query().user_id == from_user_id)
+        if not sender_updated:
             logger.error(f"❌ Sender user {from_user_id} not found in database")
 
     except Exception as e:
@@ -3391,13 +3400,14 @@ async def handle_pass_profile(query, context, user_id):
         current_profile = profiles[current_index]
         target_id = current_profile['user_id']
         
-        # Add to declined likes so it won't show again
-        current_user = db.get(User.user_id == user_id)
-        if current_user:
-            declined_likes = current_user.get('declined_likes', [])
+        # Add to declined likes so it won't show again - ATOMIC
+        def atomic_decline_add_profile(doc):
+            declined_likes = doc.get('declined_likes', [])
             if target_id not in declined_likes:
                 declined_likes.append(target_id)
-                db.update({'declined_likes': declined_likes}, User.user_id == user_id)
+            return {**doc, 'declined_likes': declined_likes}
+        
+        db.update(atomic_decline_add_profile, User.user_id == user_id)
     
     # Send pass confirmation as new message
     await query.message.reply_text(get_text(user_id, "profile_passed"))
@@ -6030,11 +6040,14 @@ async def handle_decline_like(query, user_id, target_id):
         if not current_user:
             return
 
-        # Add to declined likes so they don't show up again
-        declined_likes = current_user.get('declined_likes', [])
-        if target_id not in declined_likes:
-            declined_likes.append(target_id)
-            db.update({'declined_likes': declined_likes}, Query().user_id == user_id)
+        # Add to declined likes so they don't show up again - ATOMIC
+        def atomic_decline_browse_add(doc):
+            declined_likes = doc.get('declined_likes', [])
+            if target_id not in declined_likes:
+                declined_likes.append(target_id)
+            return {**doc, 'declined_likes': declined_likes}
+        
+        db.update(atomic_decline_browse_add, Query().user_id == user_id)
 
         lang = current_user.get('lang', 'ru')
         
@@ -6229,24 +6242,32 @@ async def handle_like_back(query, context, user_id, target_id):
         await query.answer("❌ Ошибка при отправке лайка")
 
 async def handle_decline_like(query, user_id, target_id):
-    """Handle declining a like from someone"""
+    """Handle declining a like from someone - ATOMIC operation to prevent race conditions"""
     try:
-        current_user = db.get(Query().user_id == user_id)
-        if not current_user:
+        def atomic_decline_update(doc):
+            """Atomic callback to safely decline a like"""
+            declined_likes = doc.get('declined_likes', [])
+            received_likes = doc.get('received_likes', [])
+            
+            # Add to declined if not already there
+            if target_id not in declined_likes:
+                declined_likes.append(target_id)
+                
+            # Remove from received if present  
+            if target_id in received_likes:
+                received_likes.remove(target_id)
+                
+            return {
+                **doc,
+                'declined_likes': declined_likes,
+                'received_likes': received_likes
+            }
+
+        # Perform atomic update
+        updated = db.update(atomic_decline_update, Query().user_id == user_id)
+        if not updated:
             await query.answer("❌ Ошибка")
             return
-
-        # Add to declined likes
-        declined_likes = current_user.get('declined_likes', [])
-        if target_id not in declined_likes:
-            declined_likes.append(target_id)
-            db.update({'declined_likes': declined_likes}, Query().user_id == user_id)
-
-        # Remove from received likes
-        received_likes = current_user.get('received_likes', [])
-        if target_id in received_likes:
-            received_likes.remove(target_id)
-            db.update({'received_likes': received_likes}, Query().user_id == user_id)
 
         await query.edit_message_text(
             "👎 Пропущено",
@@ -6322,17 +6343,18 @@ async def handle_like_incoming_profile(query, context, user_id, target_id):
         )
 
 async def handle_pass_incoming_profile(query, context, user_id, target_id):
-    """Handle passing someone from incoming likes"""
+    """Handle passing someone from incoming likes - ATOMIC operation"""
     try:
-        current_user = db.get(Query().user_id == user_id)
-        if not current_user:
+        def atomic_pass_update(doc):
+            declined_likes = doc.get('declined_likes', [])
+            if target_id not in declined_likes:
+                declined_likes.append(target_id)
+            return {**doc, 'declined_likes': declined_likes}
+        
+        # Perform atomic update
+        updated = db.update(atomic_pass_update, Query().user_id == user_id)
+        if not updated:
             return
-
-        # Add to declined likes so they don't show up again
-        declined_likes = current_user.get('declined_likes', [])
-        if target_id not in declined_likes:
-            declined_likes.append(target_id)
-            db.update({'declined_likes': declined_likes}, Query().user_id == user_id)
 
         await safe_edit_message(
             query,
