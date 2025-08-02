@@ -6124,52 +6124,69 @@ async def handle_like_back(query, context, user_id, target_id):
         # Add our like back
         await add_like(user_id, target_id)
 
-        # Show mutual match confirmation with revealed usernames
+        # Show full target profile with hyperlinked name for mutual match
         lang = current_user.get('lang', 'ru')
         target_name = target_user.get('name', 'Пользователь')
         target_username = target_user.get('username', '')
-        current_username = current_user.get('username', '')
-
-        if lang == 'en':
-            text = "🎉 Mutual Like!\n\nYou can now chat directly on Telegram!\n\n"
-            if target_username:
-                text += f"📱 {target_name}: @{target_username}\n"
-            else:
-                text += f"📱 {target_name}: (no username set)\n"
-            
-            if current_username:
-                text += f"📱 You: @{current_username}\n"
-            else:
-                text += f"📱 You: (no username set)\n"
-                
-            text += "\n✨ Contact each other directly in Telegram!"
+        
+        # Create hyperlinked name if username exists
+        if target_username:
+            profile_text = f"🎉 Взаимный лайк!\n\n👤 [{target_name}](https://t.me/{target_username}), {target_user.get('age', '?')} лет\n"
         else:
-            text = "🎉 Взаимный лайк!\n\nТеперь вы можете общаться напрямую в Telegram!\n\n"
-            if target_username:
-                text += f"📱 {target_name}: @{target_username}\n"
-            else:
-                text += f"📱 {target_name}: (username не указан)\n"
-            
-            if current_username:
-                text += f"📱 Вы: @{current_username}\n"
-            else:
-                text += f"📱 Вы: (username не указан)\n"
-                
-            text += "\n✨ Свяжитесь друг с другом напрямую в Telegram!"
+            profile_text = f"🎉 Взаимный лайк!\n\n👤 *{target_name}*, {target_user.get('age', '?')} лет\n"
+        
+        profile_text += f"📍 *{target_user.get('city', 'Неизвестно')}*\n"
+        
+        # Add ND traits and symptoms
+        nd_traits = target_user.get('nd_traits', [])
+        nd_symptoms = target_user.get('nd_symptoms', [])
+
+        if nd_traits:
+            traits_dict = ND_TRAITS.get(lang, ND_TRAITS['ru'])
+            trait_names = [traits_dict.get(trait, trait) for trait in nd_traits if trait in traits_dict and trait != 'none']
+            if trait_names:
+                profile_text += f"🧠 Нейроотличия: *{', '.join(trait_names)}*\n"
+
+        if nd_symptoms:
+            symptoms_dict = ND_SYMPTOMS.get(lang, ND_SYMPTOMS['ru'])
+            symptom_names = [symptoms_dict.get(symptom, symptom) for symptom in nd_symptoms if symptom in symptoms_dict]
+            if symptom_names:
+                profile_text += f"🔍 Характеристики: *{', '.join(symptom_names[:3])}"
+                if len(symptom_names) > 3:
+                    profile_text += f" и еще {len(symptom_names) - 3}"
+                profile_text += "*\n"
+        
+        profile_text += f"\n💭 {target_user.get('bio', '')}\n"
+        profile_text += f"\n✨ Теперь вы можете общаться напрямую в Telegram!"
 
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("💌 Мои лайки" if lang == 'ru' else "💌 My Likes", callback_data="my_likes")],
             [InlineKeyboardButton("🔍 Смотреть профили" if lang == 'ru' else "🔍 Browse Profiles", callback_data="browse_profiles")]
         ])
+        
+        text = profile_text
 
-        # Try to edit message text first, if it fails try caption, if both fail send new message
-        try:
-            await query.edit_message_text(text, reply_markup=keyboard)
-        except Exception:
+        # Send full profile with photo if available - as new message for better display
+        photos = target_user.get('photos', [])
+        if photos:
             try:
-                await query.edit_message_caption(caption=text, reply_markup=keyboard)
+                await query.message.reply_photo(
+                    photo=photos[0],
+                    caption=text,
+                    reply_markup=keyboard,
+                    parse_mode='Markdown'
+                )
+                await query.delete_message()
             except Exception:
-                await query.message.reply_text(text, reply_markup=keyboard)
+                # Fallback to text message
+                await query.message.reply_text(text, reply_markup=keyboard, parse_mode='Markdown')
+                await query.delete_message()
+        else:
+            # No photo, send text message
+            try:
+                await query.edit_message_text(text, reply_markup=keyboard, parse_mode='Markdown')
+            except Exception:
+                await query.message.reply_text(text, reply_markup=keyboard, parse_mode='Markdown')
         
         # Send mutual match notification to the other user
         try:
