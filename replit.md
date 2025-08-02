@@ -83,6 +83,12 @@ Preferred communication style: Simple, everyday language.
   - Converted add_like system from TinyDB callbacks to PostgreSQL atomic updates
   - Added is_profile_complete_dict() for proper type handling between dictionaries and models
   - Reduced LSP errors from 334 to 0 in main.py - bot now runs crash-free
+- **MIXED LANGUAGE INTERFACE FIXED**: Eliminated all hardcoded Russian text causing bilingual display issues (August 2, 2025)
+  - Added "profile_not_found" translation key to both Russian and English TEXTS dictionary
+  - Fixed 3 hardcoded "❌ Профиль не найден" messages in show_user_profile, browse_profiles, and continue_profile_creation functions
+  - Replaced all hardcoded Russian error messages with proper get_text() translation system calls
+  - Bot now displays 100% consistent language interface based on user preference
+  - Zero mixed-language content in user interface
 
 ### Design Patterns
 

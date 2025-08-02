@@ -422,8 +422,9 @@ TEXTS = {
         "change_photo": "📸 Изменить фото",
         "change_bio": "✍️ Изменить описание",
         "nd_traits": "Нейроотличия", 
-        "nd_characteristics_label": "Характеристики",
-        "and_more": "{get_text(user_id, 'and_more')}"
+        "nd_characteristics_label": "Характеристики", 
+        "and_more": " и ",
+        "profile_not_found": "❌ Профиль не найден. Отправьте /start для создания профиля."
     },
     "en": {
         "welcome": "🧠 Welcome to Alt3r!\n\nThis is a dating bot for neurodivergent people. Here you can find understanding, support and real connections with those who share your experience.\n\n✨ Let's create your profile!",
@@ -655,7 +656,8 @@ TEXTS = {
         "gps_processing_error": "❌ GPS processing error. Please enter city manually:",
         "profile_missing_field_error": "❌ Error: missing field '{field}'. Start over with /start",
         "media_upload_error": "❌ Media upload error. Please try again.",
-        "profile_save_error": "❌ Profile save error. Please try again or contact support."
+        "profile_save_error": "❌ Profile save error. Please try again or contact support.",
+        "profile_not_found": "❌ Profile not found. Send /start to create a profile."
     }
 }
 
@@ -2710,7 +2712,7 @@ async def show_user_profile(query, user_id):
     user = db.get(User.user_id == user_id)
     if not user:
         await query.edit_message_text(
-            "❌ Профиль не найден. Отправьте /start для создания профиля.",
+            get_text(user_id, "profile_not_found"),
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")
             ]])
@@ -2839,7 +2841,7 @@ async def browse_profiles(query, context, user_id):
     if not current_user:
         await safe_edit_message(
             query,
-            "❌ Профиль не найден. Отправьте /start для создания профиля.",
+            get_text(user_id, "profile_not_found"),
             InlineKeyboardMarkup([[
                 InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")
             ]])
@@ -5779,7 +5781,7 @@ async def continue_profile_creation(query, context, user_id):
     user = db.get(User.user_id == user_id)
     if not user:
         await query.edit_message_text(
-            "❌ Профиль не найден. Отправьте /start для создания профиля.",
+            get_text(user_id, "profile_not_found"),
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")
             ]])
