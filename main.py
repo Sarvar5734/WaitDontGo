@@ -1267,12 +1267,11 @@ def add_rating(rated_user_id, rating_value, rater_user_id):
 
 def get_user_rating(user_id):
     """Get user's current rating"""
-    user = db.search(User.user_id == user_id)
+    user = db.get(User.user_id == user_id)
     if user:
-        user_data = user[0]
         return {
-            'rating': user_data.get('total_rating', 0.0),
-            'count': user_data.get('rating_count', 0)
+            'rating': user.get('total_rating', 0.0),
+            'count': user.get('rating_count', 0)
         }
     return {'rating': 0.0, 'count': 0}
 
@@ -6196,50 +6195,7 @@ async def handle_like_back(query, context, user_id, target_id):
             ]])
         )
 
-async def handle_like_back(query, context, user_id, target_id):
-    """Handle liking back someone who liked you"""
-    try:
-        current_user = db.get(Query().user_id == user_id)
-        target_user = db.get(Query().user_id == target_id)
 
-        if not current_user or not target_user:
-            await query.answer("❌ Пользователь не найден")
-            return
-
-        # Add like back
-        await add_like(user_id, target_id)
-
-        # Check if it's now a mutual like
-        target_sent_likes = target_user.get('sent_likes', [])
-        is_match = user_id in target_sent_likes
-
-        if is_match:
-            # Send match notification
-            target_name = target_user.get('name', 'Пользователь')
-            await query.edit_message_text(
-                f"🎉 Взаимный лайк с {target_name}!\n\nТеперь вы можете общаться!",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton(f"💌 Написать {target_name}", callback_data=f"send_message_{target_id}")],
-                    [InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu")]
-                ])
-            )
-            
-            # Send notification to the other user
-            try:
-                await send_mutual_match_notification(target_id, context.application, current_user)
-            except Exception as e:
-                logger.error(f"Failed to send mutual match notification: {e}")
-        else:
-            await query.edit_message_text(
-                "❤️ Лайк отправлен!",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu")]
-                ])
-            )
-
-    except Exception as e:
-        logger.error(f"Error in handle_like_back: {e}")
-        await query.answer("❌ Ошибка при отправке лайка")
 
 async def handle_decline_like(query, user_id, target_id):
     """Handle declining a like from someone - ATOMIC operation to prevent race conditions"""
