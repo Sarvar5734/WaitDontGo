@@ -1522,14 +1522,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     # Check if user exists and has complete profile
     existing_user = db.get_user(user_id)
-    if existing_user and is_profile_complete_dict(existing_user):
-        # User already exists with complete profile - show main menu
-        context.user_data.pop('in_conversation', None)  # Clear conversation flag
-        await update.message.reply_text(
-            get_text(user_id, "main_menu"),
-            reply_markup=get_main_menu(user_id)
-        )
-        return ConversationHandler.END
+    logger.info(f"DEBUG: User {user_id} exists: {existing_user is not None}")
+    if existing_user:
+        is_complete = is_profile_complete_dict(existing_user)
+        logger.info(f"DEBUG: User {user_id} profile complete: {is_complete}")
+        logger.info(f"DEBUG: User data: {existing_user}")
+        
+        if is_complete:
+            # User already exists with complete profile - show main menu
+            context.user_data.pop('in_conversation', None)  # Clear conversation flag
+            await update.message.reply_text(
+                get_text(user_id, "main_menu"),
+                reply_markup=get_main_menu(user_id)
+            )
+            return ConversationHandler.END
 
     # If user exists but profile incomplete, continue where they left off
     if existing_user and not is_profile_complete_dict(existing_user):
