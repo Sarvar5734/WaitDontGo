@@ -2311,8 +2311,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = query.from_user.id
     data = query.data
+    
+    logger.info(f"🔍 Callback received: user_id={user_id}, data='{data}'")
 
     if not data:
+        logger.warning(f"❌ Empty callback data from user {user_id}")
         return
 
     try:
