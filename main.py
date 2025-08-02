@@ -2336,7 +2336,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data == "change_name":
             await start_change_name(query, context, user_id)
         elif data == "change_city":
-            await start_change_city(query, context, user_id)
+            logger.info(f"🏙️ Change city button clicked by user {user_id}")
+            try:
+                await start_change_city(query, context, user_id)
+                logger.info(f"✅ start_change_city completed successfully for user {user_id}")
+            except Exception as city_error:
+                logger.error(f"❌ Error in start_change_city for user {user_id}: {city_error}")
+                raise
         elif data == "change_city_setting":
             await start_change_city_setting(query, context, user_id)
         elif data == "my_likes":
@@ -3782,37 +3788,54 @@ async def start_change_name(query, context, user_id):
 
 async def start_change_city(query, context, user_id):
     """Start city change process"""
-    context.user_data['changing_city'] = True
-
-    user = db.get_user(user_id)
-    current_lang = user.get('lang', 'ru') if user else 'ru'
-
-    if current_lang == 'en':
-        prompt = "📍 Change your city:\n\nYou can share your GPS location or enter city manually:"
-        gps_btn = "📍 Share GPS Location"
-        manual_btn = "✍️ Enter Manually"
-        cancel_text = "❌ Cancel"
-    else:
-        prompt = "📍 Изменить город:\n\nВы можете поделиться GPS-локацией или ввести город вручную:"
-        gps_btn = "📍 Поделиться GPS"
-        manual_btn = "✍️ Ввести вручную"
-        cancel_text = "❌ Отмена"
-
-    # Try to edit message text, if it fails (because message has photo), send new message
+    logger.info(f"🏙️ start_change_city called for user {user_id}")
+    
     try:
-        await query.delete_message()
-    except:
-        pass
-    
-    # Send message with location request keyboard
-    keyboard = [
-        [KeyboardButton(gps_btn, request_location=True)],
-        [KeyboardButton(manual_btn)],
-        [KeyboardButton(cancel_text)]
-    ]
-    reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
-    
-    await query.message.reply_text(prompt, reply_markup=reply_markup)
+        context.user_data['changing_city'] = True
+
+        user = db.get_user(user_id)
+        current_lang = user.get('lang', 'ru') if user else 'ru'
+        logger.info(f"User {user_id} language: {current_lang}")
+
+        if current_lang == 'en':
+            prompt = "📍 Change your city:\n\nYou can share your GPS location or enter city manually:"
+            gps_btn = "📍 Share GPS Location"
+            manual_btn = "✍️ Enter Manually"
+            cancel_text = "❌ Cancel"
+        else:
+            prompt = "📍 Изменить город:\n\nВы можете поделиться GPS-локацией или ввести город вручную:"
+            gps_btn = "📍 Поделиться GPS"
+            manual_btn = "✍️ Ввести вручную"
+            cancel_text = "❌ Отмена"
+
+        logger.info(f"Attempting to delete message for user {user_id}")
+        # Try to delete message safely
+        try:
+            await query.delete_message()
+            logger.info(f"Message deleted successfully for user {user_id}")
+        except Exception as del_error:
+            logger.warning(f"Could not delete message for user {user_id}: {del_error}")
+        
+        # Send message with location request keyboard
+        keyboard = [
+            [KeyboardButton(gps_btn, request_location=True)],
+            [KeyboardButton(manual_btn)],
+            [KeyboardButton(cancel_text)]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
+        
+        logger.info(f"Sending city change prompt to user {user_id}")
+        await query.message.reply_text(prompt, reply_markup=reply_markup)
+        logger.info(f"City change prompt sent successfully to user {user_id}")
+        
+    except Exception as e:
+        logger.error(f"Critical error in start_change_city for user {user_id}: {e}")
+        # Try to send a simple error message
+        try:
+            await query.message.reply_text("❌ Произошла ошибка. Попробуйте позже.")
+        except:
+            pass
+        raise
 
 # Placeholder functions for unimplemented features
 async def show_my_likes_direct(query, context, user_id):
