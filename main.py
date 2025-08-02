@@ -11,7 +11,7 @@ import asyncio
 import requests
 import aiohttp
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import re
 import fcntl
 import atexit
@@ -1301,6 +1301,25 @@ def is_profile_complete(user: UserModel) -> bool:
 
     return has_media
 
+def is_profile_complete_dict(user: Dict[str, Any]) -> bool:
+    """Check if user profile is complete (dictionary version)"""
+    if not user:
+        return False
+    
+    required_fields = ['name', 'age', 'gender', 'interest', 'city', 'bio']
+    
+    # Check if all required fields are present and not empty
+    for field in required_fields:
+        if field not in user or not user[field]:
+            return False
+    
+    # Check if user has at least one photo or media
+    photos = user.get('photos', [])
+    media_id = user.get('media_id', '')
+    has_media = (media_id and media_id.strip()) or (photos and len(photos) > 0 and photos[0])
+
+    return has_media
+
 def get_text(user_id: int, key: str) -> str:
     """Get localized text for user"""
     user = db_manager.get_user(user_id)
@@ -1411,14 +1430,33 @@ async def add_like(from_user_id, to_user_id):
                 logger.info(f"⚠️ Sent like from {from_user_id} to {to_user_id} already exists")
                 return doc
 
-        # Perform atomic updates
-        target_updated = db.update(update_target_likes, Query().user_id == to_user_id)
-        if not target_updated:
-            logger.error(f"❌ Target user {to_user_id} not found in database")
+        # PostgreSQL atomic updates
+        try:
+            # Update target user's received likes
+            target_user = db.get_user(to_user_id)
+            if target_user:
+                received_likes = target_user.get('received_likes', [])
+                unnotified_likes = target_user.get('unnotified_likes', [])
+                
+                if from_user_id not in received_likes:
+                    received_likes.append(from_user_id)
+                    unnotified_likes.append(from_user_id)
+                    db.update_user(to_user_id, {
+                        'received_likes': received_likes,
+                        'unnotified_likes': unnotified_likes
+                    })
+                    logger.info(f"✅ Added like from {from_user_id} to {to_user_id}")
             
-        sender_updated = db.update(update_sender_likes, Query().user_id == from_user_id)
-        if not sender_updated:
-            logger.error(f"❌ Sender user {from_user_id} not found in database")
+            # Update sender's sent likes
+            sender_user = db.get_user(from_user_id)
+            if sender_user:
+                sent_likes = sender_user.get('sent_likes', [])
+                if to_user_id not in sent_likes:
+                    sent_likes.append(to_user_id)
+                    db.update_user(from_user_id, {'sent_likes': sent_likes})
+                    logger.info(f"✅ Updated sent likes for user {from_user_id}")
+        except Exception as update_error:
+            logger.error(f"❌ Error in PostgreSQL like update: {update_error}")
 
     except Exception as e:
         logger.error(f"❌ Error adding like: {e}")
@@ -1481,8 +1519,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['in_conversation'] = True
 
     # Check if user exists and has complete profile
-    existing_user = db.get(Query().user_id == user_id)
-    if existing_user and is_profile_complete(existing_user):
+    existing_user = db.get_user(user_id)
+    if existing_user and is_profile_complete_dict(existing_user):
         # User already exists with complete profile - show main menu
         context.user_data.pop('in_conversation', None)  # Clear conversation flag
         await update.message.reply_text(
@@ -1492,7 +1530,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
 
     # If user exists but profile incomplete, continue where they left off
-    if existing_user and not is_profile_complete(existing_user):
+    if existing_user and not is_profile_complete_dict(existing_user):
         lang = existing_user.get('lang', 'ru')
         
         # Fill context with existing data where available
@@ -1572,7 +1610,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     # New user - start with language selection first
     # Set default language to English for new users
-    db.upsert({'user_id': user_id, 'lang': 'en'}, Query().user_id == user_id)
+    db.create_or_update_user(user_id, {'lang': 'en'})
     
     # Show language selection first
     text = "🌐 Choose your language / Выберите язык:"
@@ -1773,8 +1811,8 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             longitude = update.message.location.longitude
 
             # Show loading message
-            user = db.get(User.user_id == user_id)
-            lang = user.get('lang', 'ru') if user else 'ru'
+            user = db.get_user(user_id)
+            lang = user.lang if user else 'ru'
             
             if lang == 'en':
                 loading_msg = "📍 Detecting your city from GPS coordinates..."
@@ -1824,8 +1862,8 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         except Exception as e:
             logger.error(f"Error processing GPS location: {e}")
 
-            user = db.get(User.user_id == user_id)
-            lang = user.get('lang', 'ru') if user else 'ru'
+            user = db.get_user(user_id)
+            lang = user.lang if user else 'ru'
 
             error_msg = get_text(user_id, "gps_processing_error")
 
@@ -1905,8 +1943,8 @@ async def handle_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         
-        user = db.get(User.user_id == user_id)
-        lang = user.get('lang', 'ru') if user else 'ru'
+        user = db.get_user(user_id)
+        lang = user.lang if user else 'ru'
 
         if lang == 'en':
             location_text = "📍 Share your location:\n\nYou can either share your GPS location or enter your city manually."
@@ -2216,7 +2254,7 @@ async def save_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "rating_count": 0
         }
 
-        db.upsert(profile_data, Query().user_id == user_id)
+        db.create_or_update_user(user_id, profile_data)
         logger.info(f"Profile saved for user {user_id}")
 
         photos_saved_count = len(photos) if photos else 1
@@ -2598,10 +2636,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await start_browsing_unfiltered_profiles(query, context, user_id)
         elif data.startswith("lang_"):
             lang = data.split("_")[1]
-            db.update({'lang': lang}, User.user_id == user_id)
+            db.update_user(user_id, {'lang': lang})
             
             # Check if this is a new user who needs to create a profile
-            user = db.get(Query().user_id == user_id)
+            user = db.get_user(user_id)
             
             if lang == 'ru':
                 success_text = "✅ Язык установлен: Русский"

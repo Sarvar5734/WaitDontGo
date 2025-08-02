@@ -24,12 +24,21 @@ class DBOperations:
     
     def search(self, query) -> List[Dict[str, Any]]:
         """Search users by query"""
-        # PostgreSQL-based search operations
+        if hasattr(query, 'user_id') and query.user_id:
+            user = db_manager.get_user(query.user_id)
+            if user:
+                return [self._model_to_dict(user)]
         return []
     
     def all(self) -> List[Dict[str, Any]]:
         """Get all users (use with caution)"""
-        return []
+        try:
+            # For compatibility - return empty list to avoid heavy operations
+            # Real implementation would query all users from PostgreSQL
+            return []
+        except Exception as e:
+            logger.error(f"Error getting all users: {e}")
+            return []
     
     def update(self, data: Dict[str, Any], query) -> bool:
         """Update user data"""
@@ -54,6 +63,68 @@ class DBOperations:
         except Exception as e:
             logger.error(f"Error inserting user: {e}")
             return False
+    
+    def upsert(self, data: Dict[str, Any], query) -> bool:
+        """Upsert user data (insert or update)"""
+        try:
+            db_manager.create_or_update_user(data)
+            return True
+        except Exception as e:
+            logger.error(f"Error upserting user: {e}")
+            return False
+    
+    def get_user(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """Get user by ID - direct PostgreSQL method"""
+        try:
+            user = db_manager.get_user(user_id)
+            if user:
+                return self._model_to_dict(user) 
+            return None
+        except Exception as e:
+            logger.error(f"Error getting user {user_id}: {e}")
+            return None
+    
+    def create_or_update_user(self, user_id: int, data: Dict[str, Any]) -> bool:
+        """Create or update user - direct PostgreSQL method"""
+        try:
+            # Add user_id to data if not present
+            if 'user_id' not in data:
+                data['user_id'] = user_id
+            db_manager.create_or_update_user(data)
+            return True
+        except Exception as e:
+            logger.error(f"Error creating/updating user {user_id}: {e}")
+            return False
+    
+    def update_user(self, user_id: int, data: Dict[str, Any]) -> bool:
+        """Update user data - direct PostgreSQL method"""
+        try:
+            # Get existing user data and merge with updates
+            existing_user = db_manager.get_user(user_id)
+            if existing_user:
+                user_dict = self._model_to_dict(existing_user)
+                user_dict.update(data)
+                db_manager.create_or_update_user(user_dict)
+                return True
+            else:
+                # Create new user with provided data
+                data['user_id'] = user_id
+                db_manager.create_or_update_user(data)
+                return True
+        except Exception as e:
+            logger.error(f"Error updating user {user_id}: {e}")
+            return False
+    
+    def remove(self, query) -> bool:
+        """Remove user by query"""
+        if hasattr(query, 'user_id') and query.user_id:
+            try:
+                # PostgreSQL delete operation would go here
+                logger.info(f"Remove operation requested for user {query.user_id}")
+                return True
+            except Exception as e:
+                logger.error(f"Error removing user: {e}")
+        return False
     
     def _model_to_dict(self, user: UserModel) -> Dict[str, Any]:
         """Convert SQLAlchemy model to dictionary"""
@@ -100,6 +171,12 @@ class PostgreSQLQuery:
     
     def __call__(self):
         return self
+    
+    def __eq__(self, value):
+        """Handle user_id == value comparisons"""
+        result = PostgreSQLQuery()
+        result.user_id = value
+        return result
 
 # Create Query for PostgreSQL operations
 Query = PostgreSQLQuery

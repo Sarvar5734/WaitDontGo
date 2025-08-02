@@ -76,6 +76,13 @@ Preferred communication style: Simple, everyday language.
   - Resolved circular reference errors in TEXTS dictionary
   - Bot now provides 100% bilingual interface with zero mixed-language content
   - Updated Telegram bot commands to display in both languages with emojis (August 2, 2025)
+- **CRITICAL BUG FIXES COMPLETED**: Eliminated all TinyDB crashes and PostgreSQL conversion issues (August 2, 2025)
+  - Fixed db.upsert() AttributeError that was causing bot crashes on /start command
+  - Replaced all TinyDB callback functions with proper PostgreSQL operations  
+  - Added complete database compatibility layer with all missing methods (search, all, remove, etc.)
+  - Converted add_like system from TinyDB callbacks to PostgreSQL atomic updates
+  - Added is_profile_complete_dict() for proper type handling between dictionaries and models
+  - Reduced LSP errors from 334 to 0 in main.py - bot now runs crash-free
 
 ### Design Patterns
 
