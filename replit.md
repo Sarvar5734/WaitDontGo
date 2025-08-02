@@ -75,6 +75,7 @@ Preferred communication style: Simple, everyday language.
   - Fixed hardcoded prompts and error messages with translation system
   - Resolved circular reference errors in TEXTS dictionary
   - Bot now provides 100% bilingual interface with zero mixed-language content
+  - Updated Telegram bot commands to display in both languages with emojis (August 2, 2025)
 
 ### Design Patterns
 

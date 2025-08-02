@@ -6830,9 +6830,9 @@ def main():
     # Set bot commands
     async def post_init(application):
         commands = [
-            BotCommand("start", "Главное меню"),
-            BotCommand("language", "Изменить язык"),
-            BotCommand("help", "Помощь")
+            BotCommand("start", "🏠 Главное меню / Main Menu"),
+            BotCommand("language", "🌐 Изменить язык / Change Language"),
+            BotCommand("help", "❓ Помощь / Help")
         ]
         await application.bot.set_my_commands(commands)
     
