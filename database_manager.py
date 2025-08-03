@@ -20,8 +20,10 @@ class DatabaseManager:
         create_tables()
         
     def get_session(self) -> Session:
-        """Get database session"""
-        return SessionLocal()
+        """Get database session with optimized settings"""
+        session = SessionLocal()
+        # Note: Statement timeout is now handled by connection pool settings
+        return session
     
 
     

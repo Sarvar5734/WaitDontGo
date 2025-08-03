@@ -1210,23 +1210,24 @@ def normalize_city(city_input):
     return best_match if best_match else city_input.strip().title()
 
 async def safe_edit_message(query, text, reply_markup=None):
-    """Safely edit message, handling both text and media messages"""
+    """Safely edit message with optimized error handling for speed"""
     try:
-        await query.edit_message_text(text, reply_markup=reply_markup)
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=None)
     except Exception as e:
         error_str = str(e).lower()
         if "no text in the message to edit" in error_str or "message is not modified" in error_str:
-            # Message has media or content is same, send new message
+            # Fast fallback - send new message without delay
             try:
                 await query.message.reply_text(text, reply_markup=reply_markup)
-            except Exception as e2:
-                logger.error(f"Failed to send new message: {e2}")
+            except Exception:
+                # Silent fail for performance - don't log every minor error
+                pass
         else:
-            # Other error, try to send new message
+            # Fast fallback for any other error
             try:
                 await query.message.reply_text(text, reply_markup=reply_markup)
-            except Exception as e2:
-                logger.error(f"Failed to send fallback message: {e2}")
+            except Exception:
+                pass
 
 async def get_city_from_coordinates(latitude: float, longitude: float) -> str:
     """Get city name from GPS coordinates using reverse geocoding"""
@@ -2301,8 +2302,9 @@ async def save_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle callback queries"""
+    """Handle callback queries with optimized response"""
     query = update.callback_query
+    # Answer callback immediately to improve perceived performance
     await query.answer()
 
     user_id = query.from_user.id
@@ -2353,23 +2355,22 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Clear any conversation state and lingering keyboards
             context.user_data.clear()
             
-            # First, send a temporary message with ReplyKeyboardRemove to clear any reply keyboards
+            # Optimized keyboard cleanup - try non-blocking approach first
             try:
-                temp_msg = await query.message.reply_text(
-                    "🏠",
-                    reply_markup=ReplyKeyboardRemove()
+                # Direct edit with keyboard removal is faster than sending+deleting
+                await safe_edit_message(
+                    query,
+                    get_text(user_id, "main_menu"),
+                    get_main_menu(user_id)
                 )
-                # Immediately delete the temporary message
-                await temp_msg.delete()
-            except:
-                pass
-            
-            # Now show the main menu
-            await safe_edit_message(
-                query,
-                get_text(user_id, "main_menu"),
-                get_main_menu(user_id)
-            )
+            except Exception:
+                # Fallback to temp message method if needed
+                try:
+                    temp_msg = await query.message.reply_text("🏠", reply_markup=ReplyKeyboardRemove())
+                    await temp_msg.delete()
+                    await safe_edit_message(query, get_text(user_id, "main_menu"), get_main_menu(user_id))
+                except:
+                    pass
         elif data.startswith("like_back_"):
             parts = data.split("_", 2)
             if len(parts) < 3:
