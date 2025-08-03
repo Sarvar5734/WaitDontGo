@@ -1,0 +1,45 @@
+{
+  "environment_variables": {
+    "TELEGRAM_BOT_TOKEN": "[REQUIRED]",
+    "DATABASE_URL": "[REQUIRED]"
+  },
+  "dependencies": {
+    "python": [
+      "python-telegram-bot",
+      "sqlalchemy",
+      "psycopg2-binary",
+      "python-dotenv",
+      "requests"
+    ],
+    "system": [
+      "postgresql-client"
+    ]
+  },
+  "ports": {
+    "main_bot": "AUTO",
+    "keep_alive": 8000
+  },
+  "platform_specific": {
+    "replit": {
+      "run_command": "python main.py",
+      "install_command": "pip install -r requirements.txt"
+    },
+    "heroku": {
+      "run_command": "python main.py",
+      "install_command": "pip install -r requirements.txt",
+      "additional_files": [
+        "Procfile",
+        "runtime.txt"
+      ]
+    },
+    "railway": {
+      "run_command": "python main.py",
+      "install_command": "pip install -r requirements.txt"
+    },
+    "docker": {
+      "base_image": "python:3.11-slim",
+      "run_command": "python main.py",
+      "dockerfile_needed": true
+    }
+  }
+}
