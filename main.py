@@ -323,6 +323,16 @@ TEXTS = {
         "settings_menu": "⚙️ Настройки",
         "settings_description": "Управление настройками профиля:",
         "change_language_btn": "🌐 Изменить язык",
+        
+        # Support menu translations
+        "support_title": "💖 Поддержать проект Alt3r",
+        "support_description": "Ваша поддержка поможет нам развивать бот и добавлять новые функции для нейроотличного сообщества.",
+        "support_amounts": "💰 Выберите сумму поддержки:",
+        "support_5": "$5 - Кофе разработчику ☕",
+        "support_10": "$10 - Обед для команды 🍕",
+        "support_25": "$25 - Хостинг на месяц 🏠",
+        "support_50": "$50 - Новые функции 🚀",
+        "support_custom": "💝 Своя сумма",
         "current_language": "Текущий язык: Русский",
         "nd_characteristics": "ND Характеристики",
         "nd_traits": "ND Особенности",
@@ -528,6 +538,16 @@ TEXTS = {
         "settings_description": "Manage your profile settings:",
         "change_language_btn": "🌐 Change Language",
         "current_language": "Current language: English",
+        
+        # Support menu translations
+        "support_title": "💖 Support Alt3r Project",
+        "support_description": "Your support helps us develop the bot and add new features for the neurodivergent community.",
+        "support_amounts": "💰 Choose support amount:",
+        "support_5": "$5 - Coffee for developer ☕",
+        "support_10": "$10 - Team lunch 🍕",
+        "support_25": "$25 - Month hosting 🏠",
+        "support_50": "$50 - New features 🚀",
+        "support_custom": "💝 Custom amount",
         "nd_characteristics": "ND Characteristics",
         "nd_traits": "ND Traits",
         "nd_search": "ND Search",
