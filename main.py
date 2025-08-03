@@ -1340,20 +1340,84 @@ def get_text(user_id: int, key: str) -> str:
     lang = user.get('lang', 'ru') if user else "ru"
     return TEXTS.get(lang, TEXTS["ru"]).get(key, key)
 
+def create_scrolling_text(text: str, max_length: int = 18, user_id: int = None) -> str:
+    """
+    Create scrolling text for long button labels
+    
+    Args:
+        text: Original text
+        max_length: Maximum visible length for button
+        user_id: User ID for personalized scrolling (optional)
+    
+    Returns:
+        Truncated or scrolling version of text
+    """
+    if len(text) <= max_length:
+        return text
+    
+    # For very long text that doesn't fit, create a smart truncation
+    # Use time-based scrolling for better user experience
+    import time
+    current_time = int(time.time())
+    scroll_speed = 3  # Seconds per scroll step (slower for readability)
+    
+    # Create seamless scrolling effect
+    extended_text = text + "   " + text  # Add space and repeat
+    text_length = len(extended_text)
+    
+    # Calculate scroll position (slower, smoother scrolling)
+    scroll_pos = (current_time // scroll_speed) % len(text)
+    
+    # Extract visible portion
+    visible_start = scroll_pos
+    visible_end = visible_start + max_length
+    
+    if visible_end <= text_length:
+        result = extended_text[visible_start:visible_end]
+    else:
+        # Wrap around
+        part1 = extended_text[visible_start:]
+        part2 = extended_text[:visible_end - text_length]
+        result = part1 + part2
+    
+    # Ensure result is exactly max_length
+    if len(result) > max_length:
+        result = result[:max_length]
+    elif len(result) < max_length:
+        result = result.ljust(max_length)
+    
+    return result
+
 def get_main_menu(user_id: int) -> InlineKeyboardMarkup:
-    """Get main menu keyboard for user"""
+    """Get main menu keyboard for user with auto-scrolling for long text"""
+    # Get all button texts and apply scrolling where needed
+    menu_texts = {
+        "profile_menu_0": get_text(user_id, "profile_menu_0"),
+        "profile_menu_1": get_text(user_id, "profile_menu_1"), 
+        "profile_menu_5": get_text(user_id, "profile_menu_5"),
+        "profile_menu_6": get_text(user_id, "profile_menu_6"),
+        "profile_menu_7": get_text(user_id, "profile_menu_7"),
+        "profile_menu_8": get_text(user_id, "profile_menu_8"),
+        "profile_menu_9": get_text(user_id, "profile_menu_9"),
+        "language_menu": get_text(user_id, "language_menu")
+    }
+    
+    # Apply scrolling to longer texts (side-by-side buttons need shorter length)
+    side_button_length = 14  # For buttons that share a row
+    single_button_length = 20  # For buttons that take full row
+    
     keyboard = [
-        [InlineKeyboardButton(get_text(user_id, "profile_menu_0"), callback_data="view_profile")],
-        [InlineKeyboardButton(get_text(user_id, "profile_menu_1"), callback_data="browse_profiles")],
-        [InlineKeyboardButton(get_text(user_id, "profile_menu_6"), callback_data="profile_settings")],
-        [InlineKeyboardButton(get_text(user_id, "profile_menu_5"), callback_data="my_likes")],
+        [InlineKeyboardButton(create_scrolling_text(menu_texts["profile_menu_0"], single_button_length, user_id), callback_data="view_profile")],
+        [InlineKeyboardButton(create_scrolling_text(menu_texts["profile_menu_1"], single_button_length, user_id), callback_data="browse_profiles")],
+        [InlineKeyboardButton(create_scrolling_text(menu_texts["profile_menu_6"], single_button_length, user_id), callback_data="profile_settings")],
+        [InlineKeyboardButton(create_scrolling_text(menu_texts["profile_menu_5"], single_button_length, user_id), callback_data="my_likes")],
         [
-            InlineKeyboardButton(get_text(user_id, "profile_menu_7"), callback_data="feedback"),
-            InlineKeyboardButton(get_text(user_id, "language_menu"), callback_data="change_language")
+            InlineKeyboardButton(create_scrolling_text(menu_texts["profile_menu_7"], side_button_length, user_id), callback_data="feedback"),
+            InlineKeyboardButton(create_scrolling_text(menu_texts["language_menu"], side_button_length, user_id), callback_data="change_language")
         ],
         [
-            InlineKeyboardButton(get_text(user_id, "profile_menu_8"), callback_data="statistics"),
-            InlineKeyboardButton(get_text(user_id, "profile_menu_9"), callback_data="support_project")
+            InlineKeyboardButton(create_scrolling_text(menu_texts["profile_menu_8"], side_button_length, user_id), callback_data="statistics"),
+            InlineKeyboardButton(create_scrolling_text(menu_texts["profile_menu_9"], side_button_length, user_id), callback_data="support_project")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
