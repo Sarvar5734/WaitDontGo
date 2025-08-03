@@ -238,7 +238,8 @@ TEXTS = {
         "profile_menu_5": "💌 Мои лайки",
         "profile_menu_6": "⚙️ Настройки профиля",
         "profile_menu_7": "📝 Обратная связь",
-        "profile_menu_8": "💖 Поддержать проект",
+        "profile_menu_8": "📊 Статистика",
+        "profile_menu_9": "💖 Поддержать проект",
         "language_menu": "🌐 Язык",
         "choose_language": "🌐 Выберите язык:",
         "language_set_ru": "✅ Язык установлен: Русский",
@@ -1349,7 +1350,10 @@ def get_main_menu(user_id: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton(get_text(user_id, "profile_menu_7"), callback_data="feedback"),
             InlineKeyboardButton(get_text(user_id, "language_menu"), callback_data="change_language")
         ],
-        [InlineKeyboardButton(get_text(user_id, "profile_menu_8"), callback_data="support_project")]
+        [
+            InlineKeyboardButton(get_text(user_id, "profile_menu_8"), callback_data="statistics"),
+            InlineKeyboardButton(get_text(user_id, "profile_menu_9"), callback_data="support_project")
+        ]
     ]
     return InlineKeyboardMarkup(keyboard)
 
