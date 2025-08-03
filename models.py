@@ -94,15 +94,16 @@ if not DATABASE_URL:
 
 engine = create_engine(
     DATABASE_URL,
-    pool_size=20,              # Increase connection pool size for better concurrency
-    max_overflow=50,           # Allow more overflow connections during peak usage
-    pool_recycle=1800,         # Recycle connections every 30 minutes to prevent SSL timeouts
+    pool_size=30,              # Increased pool size for maximum concurrency
+    max_overflow=70,           # Higher overflow for peak usage
+    pool_recycle=1200,         # Recycle every 20 minutes for optimal performance
     pool_pre_ping=True,        # Validate connections before use (prevents SSL errors)
-    pool_timeout=10,           # Faster timeout for getting connections
+    pool_timeout=5,            # Even faster timeout for getting connections
     echo=False,
     connect_args={
-        "connect_timeout": 5,   # Faster connection timeout
-        "application_name": "alt3r_bot_optimized"
+        "connect_timeout": 3,   # Ultra-fast connection timeout
+        "application_name": "alt3r_bot_ultra_optimized",
+        "options": "-c statement_timeout=8s"  # Fast query timeout
     }
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

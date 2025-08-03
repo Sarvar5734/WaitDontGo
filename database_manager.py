@@ -60,9 +60,10 @@ class DatabaseManager:
             session.close()
     
     def get_browsable_profiles(self, current_user_id: int, limit: int = 10) -> List[User]:
-        """Get profiles for browsing (excluding current user and already interacted)"""
+        """Get profiles for browsing with optimized query performance"""
         session = self.get_session()
         try:
+            # Optimized single query approach
             current_user = session.query(User).filter(User.user_id == current_user_id).first()
             if not current_user:
                 return []
@@ -72,8 +73,9 @@ class DatabaseManager:
             declined_likes = current_user.declined_likes if current_user.declined_likes is not None else []
             excluded_ids = sent_likes + declined_likes + [current_user_id]
             
-            # Build query filters
+            # Optimized query with indexed fields first
             query_filters = [
+                User.user_id.notin_(excluded_ids),  # Use indexed field first
                 User.name.isnot(None),
                 User.age.isnot(None),
                 User.bio.isnot(None)

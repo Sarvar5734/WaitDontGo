@@ -52,9 +52,14 @@ logger.info("Starting with PostgreSQL database")
 
 # Removed legacy TinyDB compatibility - now using pure PostgreSQL
 
-# AI session tracking
+# AI session tracking and performance caching
 ai_sessions = {}
 MAX_AI_MESSAGES_PER_DAY = 10
+
+# Performance optimization - user cache
+user_cache = {}
+cache_timeout = 60  # Cache users for 60 seconds
+import time
 
 # Conversation states
 (AGE, GENDER, INTEREST, CITY, NAME, BIO, PHOTO, CONFIRM, 
@@ -2355,22 +2360,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Clear any conversation state and lingering keyboards
             context.user_data.clear()
             
-            # Optimized keyboard cleanup - try non-blocking approach first
-            try:
-                # Direct edit with keyboard removal is faster than sending+deleting
-                await safe_edit_message(
-                    query,
-                    get_text(user_id, "main_menu"),
-                    get_main_menu(user_id)
-                )
-            except Exception:
-                # Fallback to temp message method if needed
-                try:
-                    temp_msg = await query.message.reply_text("🏠", reply_markup=ReplyKeyboardRemove())
-                    await temp_msg.delete()
-                    await safe_edit_message(query, get_text(user_id, "main_menu"), get_main_menu(user_id))
-                except:
-                    pass
+            # Ultra-fast direct menu transition
+            await safe_edit_message(
+                query,
+                get_text(user_id, "main_menu"),
+                get_main_menu(user_id)
+            )
         elif data.startswith("like_back_"):
             parts = data.split("_", 2)
             if len(parts) < 3:
