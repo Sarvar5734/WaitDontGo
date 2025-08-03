@@ -1,9 +1,19 @@
 """
 Translation system for Alt3r Bot
 Manages multilingual text content for the neurodivergent dating bot.
+
+EASY TRANSLATION GUIDE:
+1. Add new translations to the TEXTS dictionary below
+2. Use format: "translation_key": "Your text here"
+3. Always add to BOTH 'en' and 'ru' sections
+4. Use the check_missing_translations() function to find gaps
+5. Test with get_text_safe() which never breaks the bot
 """
 
 from typing import List, Dict, Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ===== TRANSLATION TEXTS =====
 # Main dictionary containing all bot texts in multiple languages
@@ -69,6 +79,10 @@ TEXTS = {
         "city": "City:",
         "about_me": "About me:",
         "send_message": "💌 Send Message",
+        
+        # === MISSING TRANSLATION FALLBACKS ===
+        "missing_translation": "❌ Missing translation",
+        "fallback_text": "Text not available",
     },
     
     "ru": {
