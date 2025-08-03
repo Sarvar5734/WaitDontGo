@@ -1334,8 +1334,8 @@ def is_profile_complete_dict(user: Dict[str, Any]) -> bool:
 
 def get_text(user_id: int, key: str) -> str:
     """Get localized text for user"""
-    user = db_manager.get_user(user_id)
-    lang = user.lang if user else "ru"
+    user = db.get_user(user_id)
+    lang = user.get('lang', 'ru') if user else "ru"
     return TEXTS.get(lang, TEXTS["ru"]).get(key, key)
 
 def get_main_menu(user_id: int) -> InlineKeyboardMarkup:
