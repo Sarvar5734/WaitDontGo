@@ -443,6 +443,7 @@ TEXTS = {
         "profile_menu_6": "⚙️ Settings",
         "profile_menu_7": "📝 Feedback",
         "profile_menu_8": "📊 Statistics",
+        "profile_menu_9": "💖 Support Project",
         "language_menu": "🌐 Language",
         "choose_language": "🌐 Choose language:",
         "language_set_ru": "✅ Language set: Русский",
