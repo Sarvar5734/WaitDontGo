@@ -1925,11 +1925,9 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     # Only show name prompt if we have city data
     if context.user_data.get("city"):
-        keyboard = [[KeyboardButton(get_text(user_id, "back_button"))]]
-        reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text(
             get_text(user_id, "questionnaire_name"),
-            reply_markup=reply_markup
+            reply_markup=ReplyKeyboardRemove()
         )
         return NAME
     else:
@@ -2352,6 +2350,21 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data == "statistics":
             await show_statistics(query, user_id)
         elif data == "back_to_menu":
+            # Clear any conversation state and lingering keyboards
+            context.user_data.clear()
+            
+            # First, send a temporary message with ReplyKeyboardRemove to clear any reply keyboards
+            try:
+                temp_msg = await query.message.reply_text(
+                    "🏠",
+                    reply_markup=ReplyKeyboardRemove()
+                )
+                # Immediately delete the temporary message
+                await temp_msg.delete()
+            except:
+                pass
+            
+            # Now show the main menu
             await safe_edit_message(
                 query,
                 get_text(user_id, "main_menu"),
