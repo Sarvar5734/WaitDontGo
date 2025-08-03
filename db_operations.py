@@ -74,57 +74,56 @@ class DBOperations:
             return False
     
     def get_user(self, user_id: int) -> Optional[Dict[str, Any]]:
-        """Get user by ID - direct PostgreSQL method"""
+        """Get user by ID - PostgreSQL method"""
         try:
             user = db_manager.get_user(user_id)
             if user:
-                return self._model_to_dict(user) 
+                return self._model_to_dict(user)
             return None
         except Exception as e:
             logger.error(f"Error getting user {user_id}: {e}")
             return None
     
-    def create_or_update_user(self, user_id: int, data: Dict[str, Any]) -> bool:
-        """Create or update user - direct PostgreSQL method"""
+    def get_all_users(self) -> List[Dict[str, Any]]:
+        """Get all users - PostgreSQL method"""
         try:
-            # Add user_id to data if not present
-            if 'user_id' not in data:
-                data['user_id'] = user_id
-            db_manager.create_or_update_user(data)
+            users = db_manager.get_all_users()
+            return [self._model_to_dict(user) for user in users]
+        except Exception as e:
+            logger.error(f"Error getting all users: {e}")
+            return []
+    
+    def create_or_update_user(self, user_id_or_data, data=None) -> bool:
+        """Create or update user - PostgreSQL method"""
+        try:
+            if data is None:
+                # Called with just data dict
+                db_manager.create_or_update_user(user_id_or_data)
+            else:
+                # Called with user_id and data dict
+                if isinstance(user_id_or_data, int):
+                    data['user_id'] = user_id_or_data
+                db_manager.create_or_update_user(data)
             return True
         except Exception as e:
-            logger.error(f"Error creating/updating user {user_id}: {e}")
+            logger.error(f"Error creating/updating user: {e}")
             return False
     
-    def update_user(self, user_id: int, data: Dict[str, Any]) -> bool:
-        """Update user data - direct PostgreSQL method"""
+    def delete_user(self, user_id: int) -> bool:
+        """Delete user - PostgreSQL method"""
         try:
-            # Get existing user data and merge with updates
-            existing_user = db_manager.get_user(user_id)
-            if existing_user:
-                user_dict = self._model_to_dict(existing_user)
-                user_dict.update(data)
-                db_manager.create_or_update_user(user_dict)
-                return True
-            else:
-                # Create new user with provided data
-                data['user_id'] = user_id
-                db_manager.create_or_update_user(data)
-                return True
+            return db_manager.delete_user(user_id)
         except Exception as e:
-            logger.error(f"Error updating user {user_id}: {e}")
+            logger.error(f"Error deleting user {user_id}: {e}")
             return False
     
     def remove(self, query) -> bool:
-        """Remove user by query"""
+        """Remove user by query - compatibility method"""
         if hasattr(query, 'user_id') and query.user_id:
-            try:
-                # PostgreSQL delete operation would go here
-                logger.info(f"Remove operation requested for user {query.user_id}")
-                return True
-            except Exception as e:
-                logger.error(f"Error removing user: {e}")
+            return self.delete_user(query.user_id)
         return False
+    
+    # Remove duplicate methods - these are handled by the PostgreSQL methods above
     
     def _model_to_dict(self, user: UserModel) -> Dict[str, Any]:
         """Convert SQLAlchemy model to dictionary"""
@@ -139,26 +138,26 @@ class DBOperations:
             'interest': user.interest,
             'city': user.city,
             'bio': user.bio,
-            'photos': user.photos if user.photos else [],
+            'photos': user.photos if user.photos is not None else [],
             'photo_id': user.photo_id,
             'media_type': user.media_type,
             'media_id': user.media_id,
             'latitude': user.latitude,
             'longitude': user.longitude,
-            'nd_traits': user.nd_traits if user.nd_traits else [],
-            'nd_symptoms': user.nd_symptoms if user.nd_symptoms else [],
-            'seeking_traits': user.seeking_traits if user.seeking_traits else [],
-            'likes': user.likes if user.likes else [],
-            'sent_likes': user.sent_likes if user.sent_likes else [],
-            'received_likes': user.received_likes if user.received_likes else [],
-            'unnotified_likes': user.unnotified_likes if user.unnotified_likes else [],
-            'declined_likes': user.declined_likes if user.declined_likes else [],
-            'ratings': user.ratings if user.ratings else [],
-            'total_rating': user.total_rating or 0.0,
+            'nd_traits': user.nd_traits if user.nd_traits is not None else [],
+            'nd_symptoms': user.nd_symptoms if user.nd_symptoms is not None else [],
+            'seeking_traits': user.seeking_traits if user.seeking_traits is not None else [],
+            'likes': user.likes if user.likes is not None else [],
+            'sent_likes': user.sent_likes if user.sent_likes is not None else [],
+            'received_likes': user.received_likes if user.received_likes is not None else [],
+            'unnotified_likes': user.unnotified_likes if user.unnotified_likes is not None else [],
+            'declined_likes': user.declined_likes if user.declined_likes is not None else [],
+            'ratings': user.ratings if user.ratings is not None else [],
+            'total_rating': float(user.total_rating) if user.total_rating is not None else 0.0,
             'rating_count': user.rating_count or 0,
-            'created_at': user.created_at.isoformat() if user.created_at else None,
-            'updated_at': user.updated_at.isoformat() if user.updated_at else None,
-            'last_active': user.last_active.isoformat() if user.last_active else None
+            'created_at': user.created_at.isoformat() if user.created_at is not None else None,
+            'updated_at': user.updated_at.isoformat() if user.updated_at is not None else None,
+            'last_active': user.last_active.isoformat() if user.last_active is not None else None
         }
 
 # Create global db instance for backward compatibility
@@ -171,12 +170,6 @@ class PostgreSQLQuery:
     
     def __call__(self):
         return self
-    
-    def __eq__(self, value):
-        """Handle user_id == value comparisons"""
-        result = PostgreSQLQuery()
-        result.user_id = value
-        return result
 
 # Create Query for PostgreSQL operations
 Query = PostgreSQLQuery

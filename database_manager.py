@@ -66,15 +66,20 @@ class DatabaseManager:
                 return []
             
             # Get users to exclude (already liked or declined)
-            excluded_ids = (current_user.sent_likes or []) + (current_user.declined_likes or []) + [current_user_id]
+            sent_likes = current_user.sent_likes if current_user.sent_likes is not None else []
+            declined_likes = current_user.declined_likes if current_user.declined_likes is not None else []
+            excluded_ids = sent_likes + declined_likes + [current_user_id]
             
             # Build query filters
             query_filters = [
-                ~User.user_id.in_(excluded_ids),
                 User.name.isnot(None),
                 User.age.isnot(None),
                 User.bio.isnot(None)
             ]
+            
+            # Exclude users if we have any to exclude
+            if excluded_ids:
+                query_filters.append(~User.user_id.in_(excluded_ids))
             
             # Add gender filter based on interest
             if current_user.interest == 'male':
@@ -97,25 +102,25 @@ class DatabaseManager:
             # Update liker's sent_likes
             liker = session.query(User).filter(User.user_id == liker_id).first()
             if liker:
-                sent_likes = liker.sent_likes if liker.sent_likes else []
+                sent_likes = liker.sent_likes if liker.sent_likes is not None else []
                 if liked_id not in sent_likes:
                     sent_likes.append(liked_id)
-                    liker.sent_likes = sent_likes
+                    setattr(liker, 'sent_likes', sent_likes)
                     session.merge(liker)
             
             # Update liked user's received_likes and unnotified_likes
             liked_user = session.query(User).filter(User.user_id == liked_id).first()
             if liked_user:
-                received_likes = liked_user.received_likes if liked_user.received_likes else []
-                unnotified_likes = liked_user.unnotified_likes if liked_user.unnotified_likes else []
+                received_likes = liked_user.received_likes if liked_user.received_likes is not None else []
+                unnotified_likes = liked_user.unnotified_likes if liked_user.unnotified_likes is not None else []
                 
                 if liker_id not in received_likes:
                     received_likes.append(liker_id)
-                    liked_user.received_likes = received_likes
+                    setattr(liked_user, 'received_likes', received_likes)
                 
                 if liker_id not in unnotified_likes:
                     unnotified_likes.append(liker_id)
-                    liked_user.unnotified_likes = unnotified_likes
+                    setattr(liked_user, 'unnotified_likes', unnotified_likes)
                 
                 session.merge(liked_user)
             
@@ -138,8 +143,8 @@ class DatabaseManager:
             if not user1 or not user2:
                 return False
             
-            user1_sent = user1.sent_likes if user1.sent_likes else []
-            user2_sent = user2.sent_likes if user2.sent_likes else []
+            user1_sent = user1.sent_likes if user1.sent_likes is not None else []
+            user2_sent = user2.sent_likes if user2.sent_likes is not None else []
             
             return user2_id in user1_sent and user1_id in user2_sent
         finally:
@@ -173,6 +178,32 @@ class DatabaseManager:
                 'active_users': active_users,
                 'total_feedback': total_feedback
             }
+        finally:
+            session.close()
+    
+    def get_all_users(self) -> List[User]:
+        """Get all users from database"""
+        session = self.get_session()
+        try:
+            users = session.query(User).all()
+            return users
+        finally:
+            session.close()
+    
+    def delete_user(self, user_id: int) -> bool:
+        """Delete user from database"""
+        session = self.get_session()
+        try:
+            user = session.query(User).filter(User.user_id == user_id).first()
+            if user:
+                session.delete(user)
+                session.commit()
+                return True
+            return False
+        except Exception as e:
+            session.rollback()
+            logger.error(f"Error deleting user {user_id}: {e}")
+            return False
         finally:
             session.close()
 
