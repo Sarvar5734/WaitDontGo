@@ -48,6 +48,7 @@ TEXTS = {
         "profile_menu_5": "💌 My Likes",
         "profile_menu_6": "⚙️ Settings",
         "profile_menu_7": "📝 Feedback",
+        "profile_menu_8": "💖 Support the Project",
         
         # === BUTTONS ===
         "btn_girl": "Girl",
@@ -72,6 +73,21 @@ TEXTS = {
         "bio_updated": "✅ Description updated!",
         "message_sent": "✅ Message sent!",
         "invalid_age": "❌ Please enter a valid age (18-100)",
+        
+        # === PAYMENT & SUPPORT ===
+        "support_title": "💖 Support Alt3r Project",
+        "support_description": "Help us improve Alt3r and create better connections for the neurodivergent community!",
+        "support_amounts": "Choose your support amount:",
+        "support_5": "☕ Buy us coffee - $5",
+        "support_10": "🍕 Pizza fund - $10", 
+        "support_25": "💝 Generous support - $25",
+        "support_50": "🌟 Super supporter - $50",
+        "support_custom": "💰 Custom amount",
+        "payment_success": "🎉 Thank you for your support! Your contribution helps us build a better platform for neurodivergent connections.",
+        "payment_cancelled": "❌ Payment was cancelled. No worries - you can support us anytime!",
+        "payment_failed": "❌ Payment failed. Please try again or contact support.",
+        "custom_amount_prompt": "💰 Enter custom amount in USD (minimum $1):",
+        "invalid_amount": "❌ Please enter a valid amount (minimum $1)",
         
         # === DESCRIPTIVE TEXTS ===
         "years_old": "years old",
@@ -113,8 +129,9 @@ TEXTS = {
         "profile_menu_3": "📸 Сменить фото",
         "profile_menu_4": "✍️ Изменить описание",
         "profile_menu_5": "💌 Мои лайки",
-        "profile_menu_6": "⚙️ Настройки",
+        "profile_menu_6": "⚙️ Настройки", 
         "profile_menu_7": "📝 Обратная связь",
+        "profile_menu_8": "💖 Поддержать проект",
         
         # === BUTTONS ===
         "btn_girl": "Девушка",
@@ -139,6 +156,21 @@ TEXTS = {
         "bio_updated": "✅ Описание обновлено!",
         "message_sent": "✅ Сообщение отправлено!",
         "invalid_age": "❌ Пожалуйста, введите корректный возраст (18-100)",
+        
+        # === PAYMENT & SUPPORT ===
+        "support_title": "💖 Поддержка проекта Alt3r",
+        "support_description": "Помогите нам улучшить Alt3r и создать лучшие связи для нейроразнообразного сообщества!",
+        "support_amounts": "Выберите сумму поддержки:",
+        "support_5": "☕ Купить нам кофе - $5",
+        "support_10": "🍕 Фонд пиццы - $10",
+        "support_25": "💝 Щедрая поддержка - $25", 
+        "support_50": "🌟 Супер поддержка - $50",
+        "support_custom": "💰 Произвольная сумма",
+        "payment_success": "🎉 Спасибо за вашу поддержку! Ваш вклад помогает нам строить лучшую платформу для нейроразнообразных связей.",
+        "payment_cancelled": "❌ Платеж отменен. Не беспокойтесь - вы можете поддержать нас в любое время!",
+        "payment_failed": "❌ Платеж не прошел. Пожалуйста, попробуйте снова или свяжитесь с поддержкой.",
+        "custom_amount_prompt": "💰 Введите произвольную сумму в USD (минимум $1):",
+        "invalid_amount": "❌ Пожалуйста, введите корректную сумму (минимум $1)",
         
         # === DESCRIPTIVE TEXTS ===
         "years_old": "лет",

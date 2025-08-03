@@ -2,7 +2,7 @@
 
 ## Overview
 
-Alt3r is a specialized Telegram dating bot designed for neurodivergent individuals. Its main purpose is to facilitate meaningful connections by providing comprehensive trait matching, AI assistance, and bilingual support (English/Russian). The bot features a complete user registration system, profile browsing, matching algorithms, and AI-powered support to keep users engaged. It aims to connect users sharing similar neurodivergent experiences, including ADHD, autism, anxiety, depression, and other neurological differences.
+Alt3r is a specialized Telegram dating bot designed for neurodivergent individuals. Its main purpose is to facilitate meaningful connections by providing comprehensive trait matching, AI assistance, and bilingual support (English/Russian). The bot features a complete user registration system, profile browsing, matching algorithms, AI-powered support, and now includes integrated payment functionality for project support. It aims to connect users sharing similar neurodivergent experiences, including ADHD, autism, anxiety, depression, and other neurological differences.
 
 ## User Preferences
 

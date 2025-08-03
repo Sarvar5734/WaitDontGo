@@ -1349,7 +1349,7 @@ def get_main_menu(user_id: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton(get_text(user_id, "profile_menu_7"), callback_data="feedback"),
             InlineKeyboardButton(get_text(user_id, "language_menu"), callback_data="change_language")
         ],
-        [InlineKeyboardButton(get_text(user_id, "profile_menu_8"), callback_data="statistics")]
+        [InlineKeyboardButton(get_text(user_id, "profile_menu_8"), callback_data="support_project")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -2361,6 +2361,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await show_feedback_menu(query, user_id)
         elif data == "statistics":
             await show_statistics(query, user_id)
+        elif data == "support_project":
+            await show_support_menu(query, user_id)
         elif data == "back_to_menu":
             # Clear any conversation state and lingering keyboards
             context.user_data.clear()
@@ -2731,6 +2733,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data.startswith("rate_app_"):
             rating = int(data.split("_")[2])
             await save_app_rating(query, user_id, rating)
+        elif data.startswith("support_"):
+            amount = data.split("_")[1]
+            if amount == "custom":
+                await start_custom_amount(query, context, user_id)
+            else:
+                await send_payment_invoice(query, user_id, int(amount))
+        elif data == "payment_success":
+            await handle_payment_success(query, user_id)
+        elif data == "payment_cancelled":
+            await handle_payment_cancelled(query, user_id)
         else:
             await query.edit_message_text("Функция в разработке")
 
@@ -4664,6 +4676,35 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=get_main_menu(user_id)
                 )
                 return
+
+    # Handle custom payment amount input
+    if context.user_data.get('waiting_custom_amount') and update.message.text:
+        try:
+            amount_text = update.message.text.strip().replace('$', '').replace(',', '.')
+            amount = float(amount_text)
+            
+            if amount < 1:
+                await update.message.reply_text(
+                    get_text(user_id, "invalid_amount"),
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
+                    ]])
+                )
+                return
+            
+            # Process payment with custom amount
+            context.user_data.pop('waiting_custom_amount', None)
+            await send_payment_invoice_from_message(update, user_id, int(amount))
+            return
+            
+        except ValueError:
+            await update.message.reply_text(
+                get_text(user_id, "invalid_amount"),
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
+                ]])
+            )
+            return
 
     # Handle direct message sending (text)
     if context.user_data.get('sending_message') and update.message.text:
@@ -7108,6 +7149,216 @@ async def send_browsing_interruption(user_id, application):
     except Exception as e:
         logger.error(f"Error sending browsing interruption: {e}")
 
+# ===== PAYMENT SYSTEM FUNCTIONS =====
+
+async def show_support_menu(query, user_id):
+    """Show support project menu with payment options"""
+    text = get_text(user_id, "support_title") + "\n\n"
+    text += get_text(user_id, "support_description") + "\n\n"
+    text += get_text(user_id, "support_amounts")
+    
+    keyboard = [
+        [InlineKeyboardButton(get_text(user_id, "support_5"), callback_data="support_5")],
+        [InlineKeyboardButton(get_text(user_id, "support_10"), callback_data="support_10")],
+        [InlineKeyboardButton(get_text(user_id, "support_25"), callback_data="support_25")],
+        [InlineKeyboardButton(get_text(user_id, "support_50"), callback_data="support_50")],
+        [InlineKeyboardButton(get_text(user_id, "support_custom"), callback_data="support_custom")],
+        [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
+    ]
+    
+    await query.edit_message_text(
+        text,
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def start_custom_amount(query, context, user_id):
+    """Start custom amount input"""
+    context.user_data['waiting_custom_amount'] = True
+    
+    try:
+        await query.edit_message_text(
+            get_text(user_id, "custom_amount_prompt"),
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
+            ]])
+        )
+    except:
+        await query.message.reply_text(
+            get_text(user_id, "custom_amount_prompt"),
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
+            ]])
+        )
+
+async def send_payment_invoice(query, user_id, amount):
+    """Send payment invoice using Telegram Payments"""
+    try:
+        user = db.get_user(user_id)
+        lang = user.get('lang', 'ru') if user else 'ru'
+        
+        # Payment description based on amount
+        if amount == 5:
+            title = "☕ Coffee Support" if lang == 'en' else "☕ Поддержка кофе"
+            description = "Thank you for buying us coffee!" if lang == 'en' else "Спасибо за кофе!"
+        elif amount == 10:
+            title = "🍕 Pizza Fund" if lang == 'en' else "🍕 Фонд пиццы"
+            description = "Help us fuel our development!" if lang == 'en' else "Помогите нам в разработке!"
+        elif amount == 25:
+            title = "💝 Generous Support" if lang == 'en' else "💝 Щедрая поддержка"
+            description = "Your generous contribution!" if lang == 'en' else "Ваша щедрая поддержка!"
+        elif amount == 50:
+            title = "🌟 Super Supporter" if lang == 'en' else "🌟 Супер поддержка"
+            description = "Amazing support for Alt3r!" if lang == 'en' else "Потрясающая поддержка Alt3r!"
+        else:
+            title = f"💰 Custom Support - ${amount}" if lang == 'en' else f"💰 Произвольная поддержка - ${amount}"
+            description = f"Custom support amount: ${amount}" if lang == 'en' else f"Произвольная сумма поддержки: ${amount}"
+        
+        # Create price list (amount in smallest currency unit, e.g., cents for USD)
+        prices = [{"label": title, "amount": amount * 100}]  # Convert to cents
+        
+        # Note: You need to set up payment provider and get provider_token
+        # For demo purposes, I'll show the structure
+        try:
+            # This would require a real payment provider token
+            # await query.message.reply_invoice(
+            #     title=title,
+            #     description=description,
+            #     payload=f"support_{amount}_{user_id}",
+            #     provider_token="YOUR_PAYMENT_PROVIDER_TOKEN",  # You need to get this from BotFather
+            #     currency="USD",
+            #     prices=prices,
+            #     start_parameter="support_payment"
+            # )
+            
+            # For now, show a message explaining how to set up payments
+            payment_info = ""
+            if lang == 'en':
+                payment_info = f"💳 Payment Setup Required\n\n"
+                payment_info += f"To enable ${amount} payments, you need to:\n"
+                payment_info += f"1. Contact @BotFather\n"
+                payment_info += f"2. Use /mybots → Your Bot → Payments\n"
+                payment_info += f"3. Connect a payment provider (Stripe, PayPal, etc.)\n"
+                payment_info += f"4. Get the provider token\n\n"
+                payment_info += f"Once configured, users can pay directly in Telegram!"
+            else:
+                payment_info = f"💳 Требуется настройка платежей\n\n"
+                payment_info += f"Для активации платежей ${amount} нужно:\n"
+                payment_info += f"1. Написать @BotFather\n"
+                payment_info += f"2. Использовать /mybots → Ваш бот → Payments\n"
+                payment_info += f"3. Подключить платежную систему (Stripe, PayPal и др.)\n"
+                payment_info += f"4. Получить токен провайдера\n\n"
+                payment_info += f"После настройки пользователи смогут платить прямо в Telegram!"
+            
+            await query.edit_message_text(
+                payment_info,
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
+                ]])
+            )
+            
+        except Exception as payment_error:
+            logger.error(f"Payment error: {payment_error}")
+            await query.edit_message_text(
+                get_text(user_id, "payment_failed"),
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
+                ]])
+            )
+            
+    except Exception as e:
+        logger.error(f"Error sending payment invoice: {e}")
+        await query.edit_message_text(
+            get_text(user_id, "payment_failed"),
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
+            ]])
+        )
+
+async def handle_payment_success(query, user_id):
+    """Handle successful payment"""
+    await query.edit_message_text(
+        get_text(user_id, "payment_success"),
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")
+        ]])
+    )
+
+async def handle_payment_cancelled(query, user_id):
+    """Handle cancelled payment"""
+    await query.edit_message_text(
+        get_text(user_id, "payment_cancelled"),
+        reply_markup=InlineKeyboardMarkup([[
+            InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
+        ]])
+    )
+
+async def handle_pre_checkout_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle pre-checkout query"""
+    query = update.pre_checkout_query
+    # Always approve the payment (you can add validation here)
+    await query.answer(ok=True)
+
+async def handle_successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle successful payment"""
+    payment = update.message.successful_payment
+    user_id = update.message.from_user.id
+    
+    # Extract amount from payload or payment info
+    amount = payment.total_amount // 100  # Convert from cents to dollars
+    
+    # Log the successful payment
+    logger.info(f"Payment successful: user {user_id}, amount ${amount}")
+    
+    # Send thank you message
+    await update.message.reply_text(
+        get_text(user_id, "payment_success"),
+        reply_markup=get_main_menu(user_id)
+    )
+
+async def send_payment_invoice_from_message(update, user_id, amount):
+    """Send payment invoice from message context"""
+    try:
+        user = db.get_user(user_id)
+        lang = user.get('lang', 'ru') if user else 'ru'
+        
+        title = f"💰 Custom Support - ${amount}" if lang == 'en' else f"💰 Произвольная поддержка - ${amount}"
+        description = f"Custom support amount: ${amount}" if lang == 'en' else f"Произвольная сумма поддержки: ${amount}"
+        
+        # Show payment setup info (same as in send_payment_invoice but for message context)
+        payment_info = ""
+        if lang == 'en':
+            payment_info = f"💳 Payment Setup Required\n\n"
+            payment_info += f"To enable ${amount} payments, you need to:\n"
+            payment_info += f"1. Contact @BotFather\n"
+            payment_info += f"2. Use /mybots → Your Bot → Payments\n"
+            payment_info += f"3. Connect a payment provider (Stripe, PayPal, etc.)\n"
+            payment_info += f"4. Get the provider token\n\n"
+            payment_info += f"Once configured, users can pay directly in Telegram!"
+        else:
+            payment_info = f"💳 Требуется настройка платежей\n\n"
+            payment_info += f"Для активации платежей ${amount} нужно:\n"
+            payment_info += f"1. Написать @BotFather\n"
+            payment_info += f"2. Использовать /mybots → Ваш бот → Payments\n"
+            payment_info += f"3. Подключить платежную систему (Stripe, PayPal и др.)\n"
+            payment_info += f"4. Получить токен провайдера\n\n"
+            payment_info += f"После настройки пользователи смогут платить прямо в Telegram!"
+        
+        await update.message.reply_text(
+            payment_info,
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
+            ]])
+        )
+        
+    except Exception as e:
+        logger.error(f"Error sending payment invoice from message: {e}")
+        await update.message.reply_text(
+            get_text(user_id, "payment_failed"),
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
+            ]])
+        )
+
 def main():
     """Main function to run the bot"""
     from telegram.request import HTTPXRequest
@@ -7250,6 +7501,12 @@ def main():
     application.add_handler(CommandHandler("language", show_language_command))
     application.add_handler(CommandHandler("help", show_help_command))
     application.add_handler(CommandHandler("debug", debug_profiles))
+    
+    # Add payment handlers
+    from telegram.ext import PreCheckoutQueryHandler
+    application.add_handler(PreCheckoutQueryHandler(handle_pre_checkout_query))
+    application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, handle_successful_payment))
+    
     application.add_handler(CallbackQueryHandler(handle_callback))
     application.add_handler(MessageHandler(filters.ALL, handle_message))
 
