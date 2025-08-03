@@ -101,6 +101,10 @@ def start_keep_alive():
     keep_alive_thread.start()
     logger.info("Keep-alive service thread started")
 
+def keep_alive():
+    """Main function to start keep-alive service (alias for compatibility)"""
+    return start_keep_alive()
+
 def keep_alive_ping():
     """Periodic ping to keep the service alive"""
     import requests
