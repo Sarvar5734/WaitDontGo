@@ -1215,20 +1215,25 @@ def normalize_city(city_input):
     return best_match if best_match else city_input.strip().title()
 
 async def safe_edit_message(query, text, reply_markup=None):
-    """Safely edit message with optimized error handling for speed"""
+    """Safely edit message with comprehensive media handling"""
     try:
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=None)
     except Exception as e:
         error_str = str(e).lower()
-        if "no text in the message to edit" in error_str or "message is not modified" in error_str:
-            # Fast fallback - send new message without delay
+        if any(phrase in error_str for phrase in [
+            "no text in the message to edit", 
+            "message is not modified",
+            "bad request: message can't be edited",
+            "bad request: there is no text",
+            "message with video"
+        ]):
+            # Message contains media or can't be edited - send new message
             try:
                 await query.message.reply_text(text, reply_markup=reply_markup)
             except Exception:
-                # Silent fail for performance - don't log every minor error
                 pass
         else:
-            # Fast fallback for any other error
+            # Other errors - send new message
             try:
                 await query.message.reply_text(text, reply_markup=reply_markup)
             except Exception:
@@ -2854,9 +2859,14 @@ async def show_user_profile(query, user_id):
         [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
     ]
 
-    # Send profile with photo if available
+    # Send profile with media if available
     photos = user.get('photos', [])
-    if photos:
+    media_id = user.get('media_id', '').strip()
+    media_type = user.get('media_type', '').strip()
+    
+    # Handle different media types
+    if photos and len(photos) > 0:
+        # Multiple photos - send first photo
         try:
             await query.message.reply_photo(
                 photo=photos[0],
@@ -2866,17 +2876,46 @@ async def show_user_profile(query, user_id):
             )
             await query.delete_message()
         except:
-            await query.edit_message_text(
-                profile_text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
-            )
+            await safe_edit_message(query, profile_text, InlineKeyboardMarkup(keyboard))
+    elif media_id and media_type:
+        # Single media (video, animation, video_note)
+        try:
+            if media_type == "video":
+                await query.message.reply_video(
+                    video=media_id,
+                    caption=profile_text,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode='Markdown'
+                )
+            elif media_type == "animation":
+                await query.message.reply_animation(
+                    animation=media_id,
+                    caption=profile_text,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode='Markdown'
+                )
+            elif media_type == "video_note":
+                await query.message.reply_video_note(
+                    video_note=media_id,
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+                # Send text separately for video notes (they don't support captions)
+                await query.message.reply_text(profile_text, parse_mode='Markdown')
+            else:
+                # Fallback to photo
+                await query.message.reply_photo(
+                    photo=media_id,
+                    caption=profile_text,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode='Markdown'
+                )
+            await query.delete_message()
+        except Exception as e:
+            logger.error(f"Failed to send media profile: {e}")
+            await safe_edit_message(query, profile_text, InlineKeyboardMarkup(keyboard))
     else:
-        await query.edit_message_text(
-            profile_text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
-        )
+        # No media - just text
+        await safe_edit_message(query, profile_text, InlineKeyboardMarkup(keyboard))
 
 async def browse_profiles(query, context, user_id):
     """Browse other user profiles"""
