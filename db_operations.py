@@ -123,6 +123,21 @@ class DBOperations:
             return self.delete_user(query.user_id)
         return False
     
+    def update_user(self, user_id: int, data: Dict[str, Any]) -> bool:
+        """Update user with new data - required for language changes"""
+        try:
+            existing_user = db_manager.get_user(user_id)
+            if existing_user:
+                user_dict = self._model_to_dict(existing_user)
+                user_dict.update(data)
+                user_dict['user_id'] = user_id  # Ensure user_id is set
+                db_manager.create_or_update_user(user_dict)
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Error updating user {user_id}: {e}")
+            return False
+    
     # Remove duplicate methods - these are handled by the PostgreSQL methods above
     
     def _model_to_dict(self, user: UserModel) -> Dict[str, Any]:
