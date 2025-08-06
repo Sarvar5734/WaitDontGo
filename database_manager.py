@@ -27,6 +27,15 @@ class DatabaseManager:
     
 
     
+    def user_exists(self, user_id: int) -> bool:
+        """Check if user exists in database"""
+        session = self.get_session()
+        try:
+            user = session.query(User).filter(User.user_id == user_id).first()
+            return user is not None
+        finally:
+            session.close()
+    
     def get_user(self, user_id: int) -> Optional[User]:
         """Get user by Telegram user ID"""
         session = self.get_session()
