@@ -30,6 +30,7 @@ from keep_alive import start_keep_alive
 from database_manager import db_manager
 from models import User as UserModel
 from db_operations import db
+from process_manager import process_manager
 
 load_dotenv()
 
@@ -7433,64 +7434,13 @@ def main():
     import signal
     import sys
     
-    # Signal handler for graceful shutdown
-    def signal_handler(sig, frame):
-        logger.info("Received shutdown signal, stopping bot...")
-        if lock_file:
-            try:
-                lock_file.close()
-                if os.path.exists(lock_file_path):
-                    os.remove(lock_file_path)
-                logger.info("Lock file cleaned up")
-            except:
-                pass
-        sys.exit(0)
-    
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-    
-    # Create process lock to prevent multiple instances
-    lock_file = None
-    lock_file_path = '/tmp/alt3r_bot.lock'
-    
-    try:
-        # Force cleanup of any existing lock file first
-        if os.path.exists(lock_file_path):
-            logger.info("Found existing lock file, removing it...")
-            try:
-                os.remove(lock_file_path)
-            except OSError as e:
-                logger.warning(f"Could not remove existing lock file: {e}")
-        
-        # Create new lock file
-        lock_file = open(lock_file_path, 'w')
-        try:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except (IOError, OSError):
-            logger.error("Could not acquire file lock - another instance might be running")
-            lock_file.close()
-            sys.exit(1)
-            
-        lock_file.write(str(os.getpid()))
-        lock_file.flush()
-        
-        def cleanup_lock():
-            if lock_file:
-                try:
-                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)  # Explicitly unlock
-                    lock_file.close()
-                    if os.path.exists(lock_file_path):
-                        os.remove(lock_file_path)
-                    logger.info("Lock file cleaned up successfully")
-                except Exception as e:
-                    logger.warning(f"Error cleaning up lock file: {e}")
-        
-        atexit.register(cleanup_lock)
-        logger.info("Process lock acquired successfully")
-        
-    except (IOError, OSError) as e:
-        logger.error(f"Cannot acquire lock: {e}")
+    # Setup robust process management
+    if not process_manager.acquire_lock():
+        logger.error("Could not acquire process lock - another instance may be running")
         sys.exit(1)
+    
+    # Setup signal handlers for clean shutdown
+    process_manager.setup_signal_handlers()
     
     # Configure request with better timeout and retry settings
     request = HTTPXRequest(
@@ -7603,14 +7553,7 @@ def main():
                 time.sleep(5)
             else:
                 logger.error("Max retries reached. Another bot instance may be running.")
-                # Clean up lock file before exiting
-                if lock_file:
-                    try:
-                        lock_file.close()
-                        if os.path.exists(lock_file_path):
-                            os.remove(lock_file_path)
-                    except:
-                        pass
+                process_manager.release_lock()
                 sys.exit(1)
         except KeyboardInterrupt:
             logger.info("Bot stopped by user")
@@ -7619,25 +7562,12 @@ def main():
             logger.error(f"Bot crashed with unexpected error: {e}")
             import traceback
             traceback.print_exc()
-            # Clean up lock file before exiting
-            if lock_file:
-                try:
-                    lock_file.close()
-                    if os.path.exists(lock_file_path):
-                        os.remove(lock_file_path)
-                except:
-                    pass
+            process_manager.release_lock()
             sys.exit(1)
     
     # Final cleanup
-    if lock_file:
-        try:
-            lock_file.close()
-            if os.path.exists(lock_file_path):
-                os.remove(lock_file_path)
-            logger.info("Bot shutdown complete")
-        except:
-            pass
+    process_manager.release_lock()
+    logger.info("Bot shutdown complete")
 
 if __name__ == "__main__":
     main()

@@ -18,6 +18,7 @@ The bot follows a modular design, separating concerns into distinct modules:
 - **Translation System (`translations.py`)**: Centralizes all bot text in a `TEXTS` dictionary, providing bilingual support for English and Russian, including comprehensive neurodivergent trait definitions in multiple languages. It includes helper functions for language detection and text retrieval.
 - **Handler Modules (`handlers.py`)**: Contains conversation handlers for user registration, the main menu system, profile management (viewing, editing), and dating features (like/pass, match detection, profile browsing), along with navigation elements like back buttons.
 - **Keep-Alive Service (`keep_alive.py`)**: A custom HTTP server that prevents the bot from going idle on hosting platforms and integrates with logging.
+- **Process Management (`process_manager.py`)**: Robust system to prevent multiple bot instances from running simultaneously. Uses PID files, process monitoring, and automatic cleanup to ensure only one bot runs at a time. Includes signal handlers for graceful shutdown and automatic killing of conflicting processes.
 
 ### Translation Management
 
@@ -27,6 +28,8 @@ All translations are centralized in a `TEXTS` dictionary, allowing for easy mana
 
 - **Service Architecture**: Modular design separates core bot operations from support services like the keep-alive function.
 - **Error Handling**: Implements structured logging for debugging and monitoring.
+- **Process Isolation**: Prevents multiple bot instances through robust locking mechanisms with automatic cleanup and conflict resolution.
+- **Graceful Shutdown**: Signal handlers ensure proper cleanup of resources and lock files on termination.
 
 ## External Dependencies
 
@@ -49,3 +52,4 @@ All translations are centralized in a `TEXTS` dictionary, allowing for easy mana
 ### Hosting Platform Integration
 
 - The `keep-alive` service is designed for compatibility with platforms like Replit, Heroku, or similar, using HTTP endpoints for uptime monitoring.
+- **Process Management**: Includes `start_bot.py` for safe bot startup with automatic cleanup of existing instances, ensuring no overlapping processes occur during restarts or deployments.
