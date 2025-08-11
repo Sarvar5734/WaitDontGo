@@ -6658,7 +6658,7 @@ async def show_incoming_profile(query, user_id, target_id):
         target_username = target_user.get('username', '')
         
         # Format profile
-        profile_text = f"💕 {target_name} лайкнул вас!\n\n"
+        profile_text = f"💕 *{target_name}* лайкнул вас!\n\n"
         if target_username:
             profile_text += f"👤 *{target_name}* (@{target_username}), {target_user['age']} лет\n"
         else:
@@ -6666,15 +6666,26 @@ async def show_incoming_profile(query, user_id, target_id):
             
         profile_text += f"📍 *{target_user['city']}*\n"
         
+        # Add gender info
+        gender = target_user.get('gender', '')
+        if gender:
+            gender_text = {'male': '♂️ Мужчина', 'female': '♀️ Женщина', 'other': '⚧️ Другое'}.get(gender, gender)
+            profile_text += f"{gender_text}\n"
+        
         # Add ND traits if available
         nd_traits = target_user.get('nd_traits', [])
-        if nd_traits:
+        if nd_traits and nd_traits != ['none']:
             traits_dict = ND_TRAITS.get(lang, ND_TRAITS['ru'])
             trait_names = [traits_dict.get(trait, trait) for trait in nd_traits if trait in traits_dict and trait != 'none']
             if trait_names:
-                profile_text += f"🧠 ND: *{', '.join(trait_names)}*\n"
+                profile_text += f"🧠 *ND:* {', '.join(trait_names)}\n"
         
-        profile_text += f"\n💭 {target_user['bio']}"
+        # Add bio
+        bio = target_user.get('bio', '').strip()
+        if bio:
+            profile_text += f"\n💭 _{bio}_"
+        else:
+            profile_text += f"\n💭 _Расскажу о себе позже..._"
 
         # Simple response buttons - like back or skip
         keyboard = [
@@ -6687,7 +6698,7 @@ async def show_incoming_profile(query, user_id, target_id):
 
         # Send with photo if available
         photos = target_user.get('photos', [])
-        if photos:
+        if photos and photos[0]:
             try:
                 await query.message.reply_photo(
                     photo=photos[0],
@@ -6696,18 +6707,22 @@ async def show_incoming_profile(query, user_id, target_id):
                     parse_mode='Markdown'
                 )
                 await query.delete_message()
-            except Exception:
+                logger.info(f"Successfully sent incoming like photo for user {target_id}")
+            except Exception as photo_error:
+                logger.error(f"Failed to send photo for incoming profile {target_id}: {photo_error}")
                 await safe_edit_message(
                     query,
                     profile_text,
                     InlineKeyboardMarkup(keyboard)
                 )
+                logger.info(f"Successfully sent incoming like text for user {target_id}")
         else:
             await safe_edit_message(
                 query,
                 profile_text,
                 InlineKeyboardMarkup(keyboard)
             )
+            logger.info(f"Successfully sent incoming like text for user {target_id} (no photo available)")
             
     except Exception as e:
         logger.error(f"Error showing incoming profile: {e}")
