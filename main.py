@@ -6696,8 +6696,12 @@ async def show_incoming_profile(query, user_id, target_id):
             [InlineKeyboardButton("🔙 К лайкам", callback_data="my_likes")]
         ]
 
-        # Send with photo if available
+        # Send with media if available
         photos = target_user.get('photos', [])
+        media_type = target_user.get('media_type', '')
+        media_id = target_user.get('media_id', '')
+        
+        # Try photo first, then video, then text
         if photos and photos[0]:
             try:
                 await query.message.reply_photo(
@@ -6716,13 +6720,31 @@ async def show_incoming_profile(query, user_id, target_id):
                     InlineKeyboardMarkup(keyboard)
                 )
                 logger.info(f"Successfully sent incoming like text for user {target_id}")
+        elif media_type == 'video' and media_id:
+            try:
+                await query.message.reply_video(
+                    video=media_id,
+                    caption=profile_text,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                    parse_mode='Markdown'
+                )
+                await query.delete_message()
+                logger.info(f"Successfully sent incoming like video for user {target_id}")
+            except Exception as video_error:
+                logger.error(f"Failed to send video for incoming profile {target_id}: {video_error}")
+                await safe_edit_message(
+                    query,
+                    profile_text,
+                    InlineKeyboardMarkup(keyboard)
+                )
+                logger.info(f"Successfully sent incoming like text for user {target_id}")
         else:
             await safe_edit_message(
                 query,
                 profile_text,
                 InlineKeyboardMarkup(keyboard)
             )
-            logger.info(f"Successfully sent incoming like text for user {target_id} (no photo available)")
+            logger.info(f"Successfully sent incoming like text for user {target_id} (no media available)")
             
     except Exception as e:
         logger.error(f"Error showing incoming profile: {e}")
