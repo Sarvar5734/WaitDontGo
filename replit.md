@@ -8,6 +8,23 @@ Alt3r is a specialized Telegram dating bot designed for neurodivergent individua
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (August 2025)
+
+**Navigation System Improvements:**
+- Added comprehensive debugging for profile navigation buttons
+- Fixed compatibility issues in profile browsing with proper gender/interest matching
+- Enhanced navigation with detailed logging for back/forth button functionality
+- Verified navigation works correctly with multiple profiles (3+ users)
+
+**Video Support Enhancement:**
+- Implemented video display support for incoming like profiles
+- Added media fallback logic: photos → videos → text-only display
+- Enhanced media debugging to track photo vs video content properly
+
+**Process Management:**
+- Integrated robust process manager with automatic cleanup and conflict prevention
+- Replaced complex lock system with simple, effective solution for bot stability
+
 ## System Architecture
 
 ### Code Structure
