@@ -6905,57 +6905,7 @@ async def handle_like_back(query, context, user_id, target_id):
 
 
 
-async def handle_decline_like(query, user_id, target_id):
-    """Handle declining a like from someone - ATOMIC operation to prevent race conditions"""
-    try:
-        def atomic_decline_update(doc):
-            """Atomic callback to safely decline a like"""
-            declined_likes = doc.get('declined_likes', [])
-            received_likes = doc.get('received_likes', [])
-            
-            # Add to declined if not already there
-            if target_id not in declined_likes:
-                declined_likes.append(target_id)
-                
-            # Remove from received if present  
-            if target_id in received_likes:
-                received_likes.remove(target_id)
-                
-            return {
-                **doc,
-                'declined_likes': declined_likes,
-                'received_likes': received_likes
-            }
 
-        # Perform atomic update
-        current_user_data = db.get_user(user_id)
-        if current_user_data:
-            declined_likes = current_user_data.get('declined_likes', [])
-            received_likes = current_user_data.get('received_likes', [])
-            
-            # Add to declined if not already there
-            if target_id not in declined_likes:
-                declined_likes.append(target_id)
-                
-            # Remove from received if present  
-            if target_id in received_likes:
-                received_likes.remove(target_id)
-                
-            db.create_or_update_user(user_id, {
-                'declined_likes': declined_likes,
-                'received_likes': received_likes
-            })
-
-        await query.edit_message_text(
-            "👎 Пропущено",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu")]
-            ])
-        )
-
-    except Exception as e:
-        logger.error(f"Error in handle_decline_like: {e}")
-        await query.answer("❌ Ошибка")
 
 async def handle_like_incoming_profile(query, context, user_id, target_id):
     """Handle liking back someone from incoming likes"""
