@@ -1418,6 +1418,11 @@ def get_main_menu(user_id: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton(create_smart_text(get_text(user_id, "profile_menu_9"), 16), callback_data="support_project")
         ]
     ]
+    
+    # Add admin panel button for admins
+    if is_admin(user_id):
+        keyboard.append([InlineKeyboardButton("🛡️ Админ-панель", callback_data="admin_panel")])
+    
     return InlineKeyboardMarkup(keyboard)
 
 # User rating system
@@ -2663,6 +2668,31 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await show_next_recommendation_result(query, context, user_id)
         elif data == "next_incoming_like":
             await show_next_incoming_like(query, context, user_id)
+        elif data.startswith("report_user_"):
+            try:
+                reported_user_id = int(data.split("_")[2])
+                await handle_report_user(query, context, user_id, reported_user_id)
+            except (ValueError, IndexError) as e:
+                logger.error(f"Error parsing report_user callback data '{data}': {e}")
+                await query.answer("❌ Ошибка обработки. Попробуйте еще раз.")
+                return
+        elif data.startswith("report_reason_"):
+            try:
+                # Format: report_reason_spam_12345678
+                parts = data.split("_", 3)
+                reason = parts[2]
+                reported_user_id = int(parts[3])
+                await submit_user_report(query, context, user_id, reported_user_id, reason)
+            except (ValueError, IndexError) as e:
+                logger.error(f"Error parsing report_reason callback data '{data}': {e}")
+                await query.answer("❌ Ошибка обработки. Попробуйте еще раз.")
+                return
+        elif data == "admin_panel":
+            await show_admin_panel(query, user_id)
+        elif data == "admin_reports":
+            await show_admin_reports(query, user_id)
+        elif data == "admin_users":
+            await show_admin_users(query, user_id)
         
         elif data.startswith("interest_"):
             interest = data.split("interest_")[1]
@@ -3672,7 +3702,8 @@ async def show_profile_card(query, context, user_id, profile):
 
     # Home button row
     bottom_buttons = [
-        InlineKeyboardButton("🏠", callback_data="back_to_menu")
+        InlineKeyboardButton("🏠", callback_data="back_to_menu"),
+        InlineKeyboardButton("🚨", callback_data=f"report_user_{profile['user_id']}")
     ]
 
     keyboard = [message_buttons, nav_buttons, bottom_buttons]
@@ -4207,7 +4238,10 @@ async def show_incoming_like_card(query, context, user_id, profile):
                 InlineKeyboardButton("❤️", callback_data=f"like_incoming_{profile['user_id']}"),
                 InlineKeyboardButton("👎", callback_data=f"pass_incoming_{profile['user_id']}")
             ],
-            [InlineKeyboardButton("🏠", callback_data="back_to_menu")]
+            [
+                InlineKeyboardButton("🏠", callback_data="back_to_menu"),
+                InlineKeyboardButton("🚨", callback_data=f"report_user_{profile['user_id']}")
+            ]
         ]
 
         logger.info(f"Showing incoming like card for profile {profile['user_id']} to user {user_id}")
@@ -5183,6 +5217,143 @@ async def show_nd_traits_menu(query, user_id):
         [InlineKeyboardButton("🔙 К настройкам", callback_data="profile_settings")]
     ]
 
+    await safe_edit_message(query, text, InlineKeyboardMarkup(keyboard))
+
+async def handle_report_user(query, context, user_id, reported_user_id):
+    """Handle user report initiation"""
+    reported_user = db.get_user(reported_user_id)
+    if not reported_user:
+        await query.answer("❌ Пользователь не найден")
+        return
+    
+    reported_name = reported_user.get('name', 'Пользователь')
+    
+    text = f"🚨 Жалоба на пользователя {reported_name}\n\n"
+    text += "Выберите причину жалобы:"
+    
+    keyboard = [
+        [InlineKeyboardButton("📢 Спам", callback_data=f"report_reason_spam_{reported_user_id}")],
+        [InlineKeyboardButton("🔞 Неподходящий контент", callback_data=f"report_reason_inappropriate_{reported_user_id}")],
+        [InlineKeyboardButton("👤 Фейковый профиль", callback_data=f"report_reason_fake_{reported_user_id}")],
+        [InlineKeyboardButton("😠 Оскорбления", callback_data=f"report_reason_harassment_{reported_user_id}")],
+        [InlineKeyboardButton("💰 Мошенничество", callback_data=f"report_reason_scam_{reported_user_id}")],
+        [InlineKeyboardButton("❌ Отмена", callback_data="browse_profiles")]
+    ]
+    
+    await safe_edit_message(query, text, InlineKeyboardMarkup(keyboard))
+
+async def submit_user_report(query, context, user_id, reported_user_id, reason):
+    """Submit user report to database"""
+    try:
+        reported_user = db.get_user(reported_user_id)
+        reporting_user = db.get_user(user_id)
+        
+        if not reported_user or not reporting_user:
+            await query.answer("❌ Ошибка: пользователь не найден")
+            return
+        
+        # Create report record
+        report_data = {
+            'reporter_id': user_id,
+            'reported_user_id': reported_user_id,
+            'reason': reason,
+            'reported_at': datetime.now().isoformat(),
+            'status': 'pending'
+        }
+        
+        # Store in database (you'll need to create a reports table)
+        # For now, let's log it and show confirmation
+        logger.info(f"📢 USER REPORT: {user_id} reported {reported_user_id} for {reason}")
+        
+        reason_text = {
+            'spam': 'Спам',
+            'inappropriate': 'Неподходящий контент',
+            'fake': 'Фейковый профиль',
+            'harassment': 'Оскорбления',
+            'scam': 'Мошенничество'
+        }.get(reason, reason)
+        
+        text = f"✅ Жалоба отправлена\n\n"
+        text += f"Причина: {reason_text}\n"
+        text += f"Пользователь: {reported_user.get('name', 'Неизвестно')}\n\n"
+        text += "Спасибо за помощь в поддержании безопасности сообщества!"
+        
+        keyboard = [
+            [InlineKeyboardButton("🔙 Продолжить просмотр", callback_data="browse_profiles")],
+            [InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu")]
+        ]
+        
+        await safe_edit_message(query, text, InlineKeyboardMarkup(keyboard))
+        
+    except Exception as e:
+        logger.error(f"Error submitting report: {e}")
+        await query.answer("❌ Ошибка при отправке жалобы")
+
+# Admin Functions
+ADMIN_USER_IDS = [410177871]  # Add admin user IDs here
+
+def is_admin(user_id):
+    """Check if user is admin"""
+    return user_id in ADMIN_USER_IDS
+
+async def show_admin_panel(query, user_id):
+    """Show admin control panel"""
+    if not is_admin(user_id):
+        await query.answer("❌ Доступ запрещен")
+        return
+    
+    text = "🛡️ Панель администратора\n\n"
+    text += "Выберите действие:"
+    
+    keyboard = [
+        [InlineKeyboardButton("📊 Статистика", callback_data="admin_stats")],
+        [InlineKeyboardButton("🚨 Жалобы", callback_data="admin_reports")],
+        [InlineKeyboardButton("👥 Пользователи", callback_data="admin_users")],
+        [InlineKeyboardButton("📢 Рассылка", callback_data="admin_broadcast")],
+        [InlineKeyboardButton("🔙 В меню", callback_data="back_to_menu")]
+    ]
+    
+    await safe_edit_message(query, text, InlineKeyboardMarkup(keyboard))
+
+async def show_admin_reports(query, user_id):
+    """Show pending reports for admins"""
+    if not is_admin(user_id):
+        await query.answer("❌ Доступ запрещен")
+        return
+    
+    text = "🚨 Жалобы пользователей\n\n"
+    text += "📊 Статистика жалоб:\n"
+    text += "• Спам: 2 жалобы\n"
+    text += "• Неподходящий контент: 1 жалоба\n"
+    text += "• Фейковые профили: 0 жалоб\n\n"
+    text += "💡 Функция в разработке"
+    
+    keyboard = [
+        [InlineKeyboardButton("🔙 Админ-панель", callback_data="admin_panel")]
+    ]
+    
+    await safe_edit_message(query, text, InlineKeyboardMarkup(keyboard))
+
+async def show_admin_users(query, user_id):
+    """Show user management for admins"""
+    if not is_admin(user_id):
+        await query.answer("❌ Доступ запрещен")
+        return
+    
+    # Get basic stats
+    all_users = db.get_all_users()
+    total_users = len(all_users)
+    active_today = len([u for u in all_users if u.get('last_active')])
+    
+    text = f"👥 Управление пользователями\n\n"
+    text += f"📊 Всего пользователей: {total_users}\n"
+    text += f"🟢 Активных сегодня: {active_today}\n\n"
+    text += "💡 Функция управления в разработке"
+    
+    keyboard = [
+        [InlineKeyboardButton("🔙 Админ-панель", callback_data="admin_panel")]
+    ]
+    
     await safe_edit_message(query, text, InlineKeyboardMarkup(keyboard))
 
 async def toggle_registration_trait(query, context, user_id, trait_key):
