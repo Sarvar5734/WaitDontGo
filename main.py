@@ -2488,8 +2488,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.answer("❌ Ошибка обработки. Попробуйте еще раз.")
                 return
         elif data == "prev_profile":
+            logger.info(f"📱 Navigation: User {user_id} pressed PREV button")
             await show_previous_profile(query, context, user_id)
         elif data == "next_profile":
+            logger.info(f"📱 Navigation: User {user_id} pressed NEXT button")
             await show_next_profile(query, context, user_id)
         elif data == "no_action":
             await query.answer()  # Just acknowledge the callback, do nothing
@@ -3802,10 +3804,14 @@ async def show_next_profile_as_new_message(query, context, user_id):
     """Show next profile as a new message (not editing existing)"""
     profiles = context.user_data.get('browsing_profiles', [])
     current_index = context.user_data.get('current_profile_index', 0)
+    
+    logger.info(f"📱 NEXT: current_index={current_index}, total_profiles={len(profiles)}")
 
     if current_index + 1 < len(profiles):
         context.user_data['current_profile_index'] = current_index + 1
         next_profile = profiles[current_index + 1]
+        
+        logger.info(f"📱 NEXT: Moving to index {current_index + 1}, showing profile {next_profile.get('name', 'Unknown')}")
         
         # Create a mock query object that won't try to edit the message
         class MockQuery:
@@ -3816,6 +3822,7 @@ async def show_next_profile_as_new_message(query, context, user_id):
         mock_query = MockQuery(query)
         await show_profile_card(mock_query, context, user_id, next_profile)
     else:
+        logger.info(f"📱 NEXT: No more profiles available")
         user = db.get_user(user_id)
         lang = user.get('lang', 'ru') if user else 'ru'
         
@@ -3833,12 +3840,16 @@ async def show_previous_profile(query, context, user_id):
     """Show previous profile in browsing"""
     profiles = context.user_data.get('browsing_profiles', [])
     current_index = context.user_data.get('current_profile_index', 0)
+    
+    logger.info(f"📱 PREV: current_index={current_index}, total_profiles={len(profiles)}")
 
     if current_index > 0:
         context.user_data['current_profile_index'] = current_index - 1
         prev_profile = profiles[current_index - 1]
+        logger.info(f"📱 PREV: Moving to index {current_index - 1}, showing profile {prev_profile.get('name', 'Unknown')}")
         await show_profile_card(query, context, user_id, prev_profile)
     else:
+        logger.info(f"📱 PREV: Already at first profile")
         await query.answer("Это первая анкета")
 
 async def start_change_photo(query, context, user_id):
