@@ -6701,6 +6701,8 @@ async def show_incoming_profile(query, user_id, target_id):
         media_type = target_user.get('media_type', '')
         media_id = target_user.get('media_id', '')
         
+        logger.info(f"Media debug for user {target_id}: photos={len(photos) if photos else 0}, media_type='{media_type}', media_id='{media_id[:20]}...' if media_id else 'None'")
+        
         # Try photo first, then video, then text
         if photos and photos[0]:
             try:
