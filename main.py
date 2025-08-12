@@ -1361,6 +1361,18 @@ def get_text(user_id: int, key: str) -> str:
     lang = user.get('lang', 'ru') if user else "ru"
     return TEXTS.get(lang, TEXTS["ru"]).get(key, key)
 
+def create_back_button(user_id: int, callback_data: str = "back_to_menu") -> InlineKeyboardButton:
+    """Create a standardized back button"""
+    return InlineKeyboardButton(get_text(user_id, "back_button"), callback_data=callback_data)
+
+def create_home_button() -> InlineKeyboardButton:
+    """Create a standardized home button"""
+    return InlineKeyboardButton("🏠", callback_data="back_to_menu")
+
+def create_report_button(target_user_id: int) -> InlineKeyboardButton:
+    """Create a standardized report button"""
+    return InlineKeyboardButton("🚨", callback_data=f"report_user_{target_user_id}")
+
 def create_smart_text(text: str, max_length: int = 18) -> str:
     """
     Create smart truncated text for long button labels
@@ -2497,7 +2509,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await show_previous_profile(query, context, user_id)
         elif data == "next_profile":
             logger.info(f"📱 Navigation: User {user_id} pressed NEXT button")
-            await show_next_profile(query, context, user_id)
+            await show_next_profile_as_new_message(query, context, user_id)
         elif data == "no_action":
             await query.answer()  # Just acknowledge the callback, do nothing
         elif data == "continue_browsing":
@@ -3702,8 +3714,8 @@ async def show_profile_card(query, context, user_id, profile):
 
     # Home button row
     bottom_buttons = [
-        InlineKeyboardButton("🏠", callback_data="back_to_menu"),
-        InlineKeyboardButton("🚨", callback_data=f"report_user_{profile['user_id']}")
+        create_home_button(),
+        create_report_button(profile['user_id'])
     ]
 
     keyboard = [message_buttons, nav_buttons, bottom_buttons]
@@ -3827,9 +3839,7 @@ async def handle_pass_profile(query, context, user_id):
     # Show next profile as new message
     await show_next_profile_as_new_message(query, context, user_id)
 
-async def show_next_profile(query, context, user_id):
-    """Show next profile in browsing (legacy function for compatibility)"""
-    await show_next_profile_as_new_message(query, context, user_id)
+# Legacy function removed - now uses show_next_profile_as_new_message directly
 
 async def show_next_profile_as_new_message(query, context, user_id):
     """Show next profile as a new message (not editing existing)"""
@@ -4239,8 +4249,8 @@ async def show_incoming_like_card(query, context, user_id, profile):
                 InlineKeyboardButton("👎", callback_data=f"pass_incoming_{profile['user_id']}")
             ],
             [
-                InlineKeyboardButton("🏠", callback_data="back_to_menu"),
-                InlineKeyboardButton("🚨", callback_data=f"report_user_{profile['user_id']}")
+                create_home_button(),
+                create_report_button(profile['user_id'])
             ]
         ]
 
@@ -5296,10 +5306,16 @@ def is_admin(user_id):
     """Check if user is admin"""
     return user_id in ADMIN_USER_IDS
 
-async def show_admin_panel(query, user_id):
-    """Show admin control panel"""
+async def admin_access_check(query, user_id):
+    """Check admin access and return False if denied"""
     if not is_admin(user_id):
         await query.answer("❌ Доступ запрещен")
+        return False
+    return True
+
+async def show_admin_panel(query, user_id):
+    """Show admin control panel"""
+    if not await admin_access_check(query, user_id):
         return
     
     text = "🛡️ Панель администратора\n\n"
@@ -5317,8 +5333,7 @@ async def show_admin_panel(query, user_id):
 
 async def show_admin_reports(query, user_id):
     """Show pending reports for admins"""
-    if not is_admin(user_id):
-        await query.answer("❌ Доступ запрещен")
+    if not await admin_access_check(query, user_id):
         return
     
     text = "🚨 Жалобы пользователей\n\n"
@@ -5336,8 +5351,7 @@ async def show_admin_reports(query, user_id):
 
 async def show_admin_users(query, user_id):
     """Show user management for admins"""
-    if not is_admin(user_id):
-        await query.answer("❌ Доступ запрещен")
+    if not await admin_access_check(query, user_id):
         return
     
     # Get basic stats
