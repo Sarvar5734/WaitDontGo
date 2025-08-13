@@ -11,7 +11,7 @@ import asyncio
 import requests
 import aiohttp
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional
 import re
 import fcntl
 import atexit
@@ -25,12 +25,9 @@ from telegram.ext import (
     ApplicationBuilder, ContextTypes, CommandHandler, 
     MessageHandler, CallbackQueryHandler, ConversationHandler, filters
 )
+from tinydb import TinyDB, Query
 from dotenv import load_dotenv
 from keep_alive import start_keep_alive
-from database_manager import db_manager
-from models import User as UserModel
-from db_operations import db
-from process_manager import process_manager
 
 load_dotenv()
 
@@ -48,19 +45,16 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN or BOT_TOKEN environment variable not set")
 
-# Initialize PostgreSQL database
-logger.info("Starting with PostgreSQL database")
+# Database
+db = TinyDB("db.json")
+User = Query()
 
-# Removed legacy TinyDB compatibility - now using pure PostgreSQL
+# Feedback database
+feedback_db = TinyDB("feedback.json")
 
-# AI session tracking and performance caching
+# AI session tracking
 ai_sessions = {}
 MAX_AI_MESSAGES_PER_DAY = 10
-
-# Performance optimization - user cache
-user_cache = {}
-cache_timeout = 60  # Cache users for 60 seconds
-import time
 
 # Conversation states
 (AGE, GENDER, INTEREST, CITY, NAME, BIO, PHOTO, CONFIRM, 
@@ -240,7 +234,6 @@ TEXTS = {
         "profile_menu_6": "⚙️ Настройки профиля",
         "profile_menu_7": "📝 Обратная связь",
         "profile_menu_8": "📊 Статистика",
-        "profile_menu_9": "💖 Поддержать проект",
         "language_menu": "🌐 Язык",
         "choose_language": "🌐 Выберите язык:",
         "language_set_ru": "✅ Язык установлен: Русский",
@@ -268,7 +261,7 @@ TEXTS = {
         "questionnaire_city": "📍 Поделитесь вашим местоположением или введите город:",
         "questionnaire_name": "Как к вам обращаться?",
         "questionnaire_bio": "Расскажите о себе и о том, кого хотите найти. Это поможет лучше подобрать совпадения.",
-        "questionnaire_photo": "Теперь отправьте до 3 фото, видео или GIF 👍 (видео до 15 сек)",
+        "questionnaire_photo": "Теперь отправьте до 3 фото или запишите видео 👍 (до 15 сек)",
         "profile_preview": "Вот как выглядит ваша анкета:",
         "profile_correct": "Всё правильно?",
         "btn_girls": "Девушки",
@@ -324,16 +317,6 @@ TEXTS = {
         "settings_menu": "⚙️ Настройки",
         "settings_description": "Управление настройками профиля:",
         "change_language_btn": "🌐 Изменить язык",
-        
-        # Support menu translations
-        "support_title": "💖 Поддержать проект Alt3r",
-        "support_description": "Помогите оплатить хостинг, разработку и поддержку сервера для нейроотличного сообщества.",
-        "support_amounts": "💰 Выберите сумму для покрытия расходов:",
-        "support_5": "$5 - Хостинг на неделю 🏠",
-        "support_10": "$10 - База данных на месяц 💾",
-        "support_25": "$25 - Сервер на месяц ⚡",
-        "support_50": "$50 - Разработка функций 🚀",
-        "support_custom": "💝 Другая сумма",
         "current_language": "Текущий язык: Русский",
         "nd_characteristics": "ND Характеристики",
         "nd_traits": "ND Особенности",
@@ -416,10 +399,6 @@ TEXTS = {
         "location_sharing_error": "Пожалуйста, поделитесь местоположением или введите город вручную.",
         "photo_required": "📸 Пожалуйста, сначала отправьте хотя бы одно фото или видео",
         "media_send_prompt": "📸 Отправьте фото, видео или видео-сообщение",
-        "gps_processing_error": "❌ Ошибка обработки GPS. Пожалуйста, введите город вручную:",
-        "profile_missing_field_error": "❌ Ошибка: отсутствует поле '{field}'. Начните заново с /start",
-        "media_upload_error": "❌ Ошибка загрузки медиафайла. Попробуйте еще раз.",
-        "profile_save_error": "❌ Ошибка при сохранении профиля. Попробуйте еще раз или обратитесь в поддержку.",
         "gender_selection_error": "Пожалуйста, выберите пол из предложенных вариантов.",
         "interest_selection_error": "Пожалуйста, выберите из предложенных вариантов.",
         "nd_selection_prompt": "🧠 Выберите ваши нейроотличности:\n\nЭто поможет найти людей с похожим опытом!\nМожно выбрать до 3 особенностей.",
@@ -438,9 +417,7 @@ TEXTS = {
         "change_photo": "📸 Изменить фото",
         "change_bio": "✍️ Изменить описание",
         "nd_traits": "Нейроотличия", 
-        "nd_characteristics_label": "Характеристики", 
-        "and_more": " и ",
-        "profile_not_found": "❌ Профиль не найден. Отправьте /start для создания профиля."
+        "nd_characteristics_label": "Характеристики"
     },
     "en": {
         "welcome": "🧠 Welcome to Alt3r!\n\nThis is a dating bot for neurodivergent people. Here you can find understanding, support and real connections with those who share your experience.\n\n✨ Let's create your profile!",
@@ -454,7 +431,6 @@ TEXTS = {
         "profile_menu_6": "⚙️ Settings",
         "profile_menu_7": "📝 Feedback",
         "profile_menu_8": "📊 Statistics",
-        "profile_menu_9": "💖 Support Project",
         "language_menu": "🌐 Language",
         "choose_language": "🌐 Choose language:",
         "language_set_ru": "✅ Language set: Русский",
@@ -482,7 +458,7 @@ TEXTS = {
         "questionnaire_city": "📍 Share your location or enter your city:",
         "questionnaire_name": "What should I call you?",
         "questionnaire_bio": "Tell me about yourself and who you want to find. This will help better match you.",
-        "questionnaire_photo": "Now send up to 3 photos, video, or GIF 👍 (video up to 15 sec)",
+        "questionnaire_photo": "Now send up to 3 photos or record a video 👍 (up to 15 sec)",
         "profile_preview": "This is how your profile looks:",
         "profile_correct": "Is everything correct?",
         "btn_girls": "Girls",
@@ -539,16 +515,6 @@ TEXTS = {
         "settings_description": "Manage your profile settings:",
         "change_language_btn": "🌐 Change Language",
         "current_language": "Current language: English",
-        
-        # Support menu translations
-        "support_title": "💖 Support Alt3r Project",
-        "support_description": "Help cover hosting, development and server maintenance costs for the neurodivergent community.",
-        "support_amounts": "💰 Choose amount to cover expenses:",
-        "support_5": "$5 - Week hosting 🏠",
-        "support_10": "$10 - Month database 💾",
-        "support_25": "$25 - Month server ⚡",
-        "support_50": "$50 - Feature development 🚀",
-        "support_custom": "💝 Other amount",
         "nd_characteristics": "ND Characteristics",
         "nd_traits": "ND Traits",
         "nd_search": "ND Search",
@@ -678,13 +644,7 @@ TEXTS = {
         "change_photo": "📸 Change Photo",
         "change_bio": "✍️ Change Bio",
         "nd_traits": "ND Traits",
-        "nd_characteristics_label": "Characteristics",
-        "and_more": " and ",
-        "gps_processing_error": "❌ GPS processing error. Please enter city manually:",
-        "profile_missing_field_error": "❌ Error: missing field '{field}'. Start over with /start",
-        "media_upload_error": "❌ Media upload error. Please try again.",
-        "profile_save_error": "❌ Profile save error. Please try again or contact support.",
-        "profile_not_found": "❌ Profile not found. Send /start to create a profile."
+        "nd_characteristics_label": "Characteristics"
     }
 }
 
@@ -1238,29 +1198,23 @@ def normalize_city(city_input):
     return best_match if best_match else city_input.strip().title()
 
 async def safe_edit_message(query, text, reply_markup=None):
-    """Safely edit message with comprehensive media handling"""
+    """Safely edit message, handling both text and media messages"""
     try:
-        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=None)
+        await query.edit_message_text(text, reply_markup=reply_markup)
     except Exception as e:
         error_str = str(e).lower()
-        if any(phrase in error_str for phrase in [
-            "no text in the message to edit", 
-            "message is not modified",
-            "bad request: message can't be edited",
-            "bad request: there is no text",
-            "message with video"
-        ]):
-            # Message contains media or can't be edited - send new message
+        if "no text in the message to edit" in error_str or "message is not modified" in error_str:
+            # Message has media or content is same, send new message
             try:
                 await query.message.reply_text(text, reply_markup=reply_markup)
-            except Exception:
-                pass
+            except Exception as e2:
+                logger.error(f"Failed to send new message: {e2}")
         else:
-            # Other errors - send new message
+            # Other error, try to send new message
             try:
                 await query.message.reply_text(text, reply_markup=reply_markup)
-            except Exception:
-                pass
+            except Exception as e2:
+                logger.error(f"Failed to send fallback message: {e2}")
 
 async def get_city_from_coordinates(latitude: float, longitude: float) -> str:
     """Get city name from GPS coordinates using reverse geocoding"""
@@ -1320,136 +1274,301 @@ async def get_city_from_coordinates(latitude: float, longitude: float) -> str:
         logger.error(f"Error in reverse geocoding: {e}")
         return "Unknown Location"
 
-def is_profile_complete(user: UserModel) -> bool:
+def get_city_coordinates(city_name: str) -> tuple:
+    """Get GPS coordinates for a city name with exact matching for CIS countries"""
+    
+    normalized_city = normalize_city(city_name).lower()
+    
+    # Comprehensive coordinate database with exact city name matching
+    city_coordinates = {
+        # Major Russian Cities - Exact coordinates for distance calculation
+        "москва": (55.7558, 37.6176),
+        "санкт-петербург": (59.9311, 30.3609),
+        "новосибирск": (55.0084, 82.9357),
+        "екатеринбург": (56.8431, 60.6454),
+        "казань": (55.8304, 49.0661),
+        "нижний новгород": (56.2965, 43.9361),
+        "челябинск": (55.1644, 61.4368),
+        "самара": (53.2415, 50.2212),
+        "омск": (54.9885, 73.3242),
+        "ростов-на-дону": (47.2357, 39.7015),
+        "уфа": (54.7388, 55.9721),
+        "красноярск": (56.0184, 92.8672),
+        "воронеж": (51.6720, 39.1843),
+        "пермь": (58.0105, 56.2502),
+        "волгоград": (48.7080, 44.5133),
+        "краснодар": (45.0328, 38.9769),
+        "саратов": (51.5924, 46.0348),
+        "тюмень": (57.1522, 65.5272),
+        "тольятти": (53.5087, 49.4206),
+        "ижевск": (56.8287, 53.2045),
+        "барнаул": (53.3606, 83.7636),
+        "ульяновск": (54.3142, 48.4031),
+        "иркутск": (52.2873, 104.3050),
+        "хабаровск": (48.4827, 135.0839),
+        "ярославль": (57.6261, 39.8845),
+        "владивосток": (43.1056, 131.8735),
+        "махачкала": (42.9849, 47.5047),
+        "томск": (56.4977, 84.9744),
+        "оренбург": (51.7727, 55.0988),
+        "кемерово": (55.3333, 86.0833),
+        "рязань": (54.6269, 39.6916),
+        "набережные челны": (55.7256, 52.4114),
+        "пенза": (53.2001, 45.0000),
+        "липецк": (52.6031, 39.5708),
+        "тула": (54.1961, 37.6182),
+        "киров": (58.6035, 49.6679),
+        "чебоксары": (56.1439, 47.2517),
+        "калининград": (54.7065, 20.5110),
+        "брянск": (53.2434, 34.3641),
+        "курск": (51.7373, 36.1873),
+        "иваново": (56.9970, 40.9737),
+        "магнитогорск": (53.4078, 58.9796),
+        "тверь": (56.8587, 35.9176),
+        "ставрополь": (45.0428, 41.9734),
+        "нижний тагил": (57.9197, 59.9650),
+        "белгород": (50.5972, 36.5870),
+        "архангельск": (64.5401, 40.5433),
+        "владимир": (56.1366, 40.3966),
+        "сочи": (43.6028, 39.7342),
+        "курган": (55.4500, 65.3333),
+        "смоленск": (54.7818, 32.0401),
+        "калуга": (54.5293, 36.2754),
+        "чита": (52.0307, 113.5006),
+        "орел": (52.9653, 36.0785),
+        "волжский": (48.7854, 44.7719),
+        "череповец": (59.1374, 37.9017),
+        "вологда": (59.2239, 39.8840),
+        "мурманск": (68.9585, 33.0827),
+        "сургут": (61.2500, 73.4167),
+        "тамбов": (52.7319, 41.4619),
+        "стерлитамак": (53.6241, 55.9505),
+        "грозный": (43.3181, 45.6986),
+        "якутск": (62.0355, 129.6755),
+        "кострома": (57.7665, 40.9265),
+        "комсомольск-на-амуре": (50.5496, 137.0066),
+        "петрозаводск": (61.7849, 34.3469),
+        "нижневартовск": (60.9344, 76.5531),
+        "йошкар-ола": (56.6372, 47.8902),
+        "новокузнецк": (53.7557, 87.1099),
+        "химки": (55.8970, 37.4296),
+        "балашиха": (55.7969, 37.9580),
+        "энгельс": (51.4827, 46.1124),
+        "подольск": (55.4297, 37.5408),
+        
+        # CIS Countries Major Cities - Exact coordinates
+        "киев": (50.4501, 30.5234),
+        "харьков": (49.9935, 36.2304),
+        "одесса": (46.4825, 30.7233),
+        "днепр": (48.4647, 35.0462),
+        "львов": (49.8397, 24.0297),
+        
+        "минск": (53.9006, 27.5590),
+        "гомель": (52.4345, 30.9754),
+        "могилев": (53.9168, 30.3449),
+        "витебск": (55.1904, 30.2049),
+        "гродно": (53.6884, 23.8258),
+        "брест": (52.0975, 23.7340),
+        
+        "алматы": (43.2220, 76.8512),
+        "нур-султан": (51.1694, 71.4491),
+        "шымкент": (42.3000, 69.5992),
+        "актобе": (50.2839, 57.2094),
+        "тараз": (42.9000, 71.3667),
+        "павлодар": (52.2873, 76.9717),
+        "усть-каменогорск": (49.9788, 82.6279),
+        "семей": (50.4111, 80.2275),
+        "атырау": (47.1164, 51.8753),
+        "костанай": (53.2138, 63.6345),
+        "кызылорда": (44.8479, 65.5093),
+        "актау": (43.6500, 51.2000),
+        "петропавловск": (54.8667, 69.1500),
+        "талдыкорган": (45.0000, 78.3667),
+        "туркестан": (43.2975, 68.2517),
+        
+        "ташкент": (41.2995, 69.2401),
+        "самарканд": (39.6270, 66.9750),
+        "наманган": (40.9983, 71.6726),
+        "андижан": (40.7821, 72.3442),
+        "нукус": (42.4731, 59.6103),
+        
+        "бишкек": (42.8746, 74.5698),
+        "ош": (40.5283, 72.7985),
+        "джалал-абад": (40.9333, 73.0000),
+        "каракол": (42.4908, 78.3928),
+        
+        "душанбе": (38.5598, 68.7870),
+        "худжанд": (40.2989, 69.6200),
+        "куляб": (37.9147, 69.7850),
+        "курган-тюбе": (37.8353, 68.7819),
+        
+        "ашгабат": (37.9601, 58.3261),
+        "туркменабад": (39.0736, 63.5784),
+        "дашогуз": (41.8367, 59.9667),
+        "туркменбаши": (40.0225, 52.9550),
+        
+        "баку": (40.4093, 49.8671),
+        "гянджа": (40.6828, 46.3611),
+        "сумгаит": (40.5892, 49.6681),
+        "мингечевир": (40.7642, 47.0586),
+        
+        "ереван": (40.1792, 44.4991),
+        "гюмри": (40.7894, 43.8486),
+        "ванадзор": (40.8058, 44.4939),
+        "вагаршапат": (40.1556, 44.2944),
+        
+        "тбилиси": (41.7151, 44.8271),
+        "кутаиси": (42.2488, 42.7058),
+        "батуми": (41.6168, 41.6367),
+        "рустави": (41.5492, 44.9839),
+        
+        # European cities for reference  
+        "варшава": (52.2297, 21.0122),
+        "берлин": (52.5200, 13.4050),
+        "прага": (50.0755, 14.4378),
+        "вена": (48.2082, 16.3738),
+        "будапешт": (47.4979, 19.0402),
+        "париж": (48.8566, 2.3522),
+        "лондон": (51.5074, -0.1278),
+        "мадрид": (40.4168, -3.7038),
+        "рим": (41.9028, 12.4964),
+        "амстердам": (52.3676, 4.9041),
+        
+        # North American cities
+        "new york": (40.7128, -74.0060),
+        "los angeles": (34.0522, -118.2437),
+        "chicago": (41.8781, -87.6298),
+        "houston": (29.7604, -95.3698),
+        "philadelphia": (39.9526, -75.1652),
+        "phoenix": (33.4484, -112.0740),
+        "san antonio": (29.4241, -98.4936),
+        "san diego": (32.7157, -117.1611),
+        "dallas": (32.7767, -96.7970),
+        "san jose": (37.3382, -121.8863),
+        
+        # Asian cities
+        "пекин": (39.9042, 116.4074),
+        "шанхай": (31.2304, 121.4737),
+        "токио": (35.6762, 139.6503),
+        "сеул": (37.5665, 126.9780),
+        "мумбаи": (19.0760, 72.8777),
+        "дели": (28.7041, 77.1025),
+        "джакарта": (6.2088, 106.8456),
+        "манила": (14.5995, 120.9842),
+        "бангкок": (13.7563, 100.5018),
+        "гонконг": (22.3193, 114.1694),
+        
+        # African cities
+        "каир": (30.0444, 31.2357),
+        "лагос": (6.5244, 3.3792),
+        "найроби": (1.2921, 36.8219),
+        "кейптаун": (33.9249, 18.4241),
+        "касабланка": (33.5731, 7.5898),
+        
+        # Australian cities
+        "сидней": (33.8688, 151.2093),
+        "мельбурн": (37.8136, 144.9631),
+        "брисбен": (27.4698, 153.0251),
+        "перт": (31.9505, 115.8605),
+        "аделаида": (34.9285, 138.6007),
+        "канберра": (35.2809, 149.1300),
+    }
+    
+    # Try to find exact match first
+    if normalized_city in city_coordinates:
+        return city_coordinates[normalized_city]
+    
+    # Check common variations manually for key CIS cities
+    city_variations = {
+        "мск": "москва",
+        "spb": "санкт-петербург", 
+        "спб": "санкт-петербург",
+        "питер": "санкт-петербург",
+        "petersburg": "санкт-петербург",
+        "ннов": "нижний новгород",
+        "нн": "нижний новгород",
+        "екб": "екатеринбург",
+        "kyiv": "киев",
+        "kiev": "киев",
+        "minsk": "минск",
+        "almaty": "алматы",
+        "алма-ата": "алматы",
+        "astana": "нур-султан",
+        "nur-sultan": "нур-султан",
+        "tashkent": "ташкент",
+        "bishkek": "бишкек",
+        "dushanbe": "душанбе",
+        "ashgabat": "ашгабат",
+        "baku": "баку",
+        "yerevan": "ереван",
+        "tbilisi": "тбилиси",
+    }
+    
+    # Check variations
+    if normalized_city in city_variations:
+        canonical_city = city_variations[normalized_city]
+        if canonical_city in city_coordinates:
+            return city_coordinates[canonical_city]
+    
+    # Return None if no coordinates found
+    return None
+
+def is_profile_complete(user: dict) -> bool:
     """Check if user profile is complete"""
-    if not user:
+    if not user or not isinstance(user, dict):
         return False
         
+    required_fields = ['name', 'age', 'gender', 'interest', 'city', 'bio']
+
     # Check basic fields
-    required_fields = [user.name, user.age, user.gender, user.interest, user.city, user.bio]
     for field in required_fields:
-        if not field or (isinstance(field, str) and field.strip() == ''):
+        field_value = user.get(field)
+        if not field_value or (isinstance(field_value, str) and field_value.strip() == ''):
             return False
 
     # Check media - either media_id or photos array (must have actual content)
-    has_media = (user.media_id and user.media_id.strip()) or (user.photos and len(user.photos) > 0 and user.photos[0])
-
-    return bool(has_media)
-
-def is_profile_complete_dict(user: Dict[str, Any]) -> bool:
-    """Check if user profile is complete (dictionary version)"""
-    if not user:
-        return False
-    
-    required_fields = ['name', 'age', 'gender', 'interest', 'city', 'bio']
-    
-    # Check if all required fields are present and not empty
-    for field in required_fields:
-        if field not in user or not user[field]:
-            return False
-    
-    # Check if user has at least one photo or media
+    media_id = user.get('media_id')
     photos = user.get('photos', [])
-    media_id = user.get('media_id', '')
+    
     has_media = (media_id and media_id.strip()) or (photos and len(photos) > 0 and photos[0])
 
-    return bool(has_media)  # Ensure boolean return
+    return has_media
 
 def get_text(user_id: int, key: str) -> str:
     """Get localized text for user"""
-    user = db.get_user(user_id)
-    lang = user.get('lang', 'ru') if user else "ru"
+    user = db.get(Query().user_id == user_id)
+    lang = user.get("lang", "ru") if user else "ru"
     return TEXTS.get(lang, TEXTS["ru"]).get(key, key)
 
-def create_back_button(user_id: int, callback_data: str = "back_to_menu") -> InlineKeyboardButton:
-    """Create a standardized back button"""
-    return InlineKeyboardButton(get_text(user_id, "back_button"), callback_data=callback_data)
-
-def create_home_button() -> InlineKeyboardButton:
-    """Create a standardized home button"""
-    return InlineKeyboardButton("🏠", callback_data="back_to_menu")
-
-def create_report_button(target_user_id: int) -> InlineKeyboardButton:
-    """Create a standardized report button"""
-    return InlineKeyboardButton("🚨", callback_data=f"report_user_{target_user_id}")
-
-def create_smart_text(text: str, max_length: int = 18) -> str:
-    """
-    Create smart truncated text for long button labels
-    
-    Args:
-        text: Original text
-        max_length: Maximum visible length for button
-    
-    Returns:
-        Clean truncated version of text
-    """
-    if len(text) <= max_length:
-        return text
-    
-    # Smart truncation - keep important parts visible
-    if max_length < 8:
-        return text[:max_length]
-    
-    # For longer text, try to keep emojis and main words
-    words = text.split()
-    if len(words) >= 2:
-        # Try to fit first emoji/icon + key word
-        emoji_part = words[0] if len(words[0]) <= 3 else ""
-        remaining_length = max_length - len(emoji_part) - 1
-        
-        # Find the most important word (usually the main noun)
-        important_words = []
-        for word in words[1:]:
-            if len(" ".join(important_words + [word])) <= remaining_length:
-                important_words.append(word)
-            else:
-                break
-        
-        if important_words:
-            result = emoji_part + " " + " ".join(important_words)
-            if len(result) <= max_length:
-                return result
-    
-    # Fallback: smart truncation with ellipsis
-    return text[:max_length-1] + "…"
-
 def get_main_menu(user_id: int) -> InlineKeyboardMarkup:
-    """Get main menu keyboard for user with clean text formatting"""
+    """Get main menu keyboard for user"""
     keyboard = [
         [InlineKeyboardButton(get_text(user_id, "profile_menu_0"), callback_data="view_profile")],
         [InlineKeyboardButton(get_text(user_id, "profile_menu_1"), callback_data="browse_profiles")],
         [InlineKeyboardButton(get_text(user_id, "profile_menu_6"), callback_data="profile_settings")],
         [InlineKeyboardButton(get_text(user_id, "profile_menu_5"), callback_data="my_likes")],
         [
-            InlineKeyboardButton(create_smart_text(get_text(user_id, "profile_menu_7"), 16), callback_data="feedback"),
+            InlineKeyboardButton(get_text(user_id, "profile_menu_7"), callback_data="feedback"),
             InlineKeyboardButton(get_text(user_id, "language_menu"), callback_data="change_language")
         ],
-        [
-            InlineKeyboardButton(get_text(user_id, "profile_menu_8"), callback_data="statistics"),
-            InlineKeyboardButton(create_smart_text(get_text(user_id, "profile_menu_9"), 16), callback_data="support_project")
-        ]
+        [InlineKeyboardButton(get_text(user_id, "profile_menu_8"), callback_data="statistics")]
     ]
-    
-    # Add admin panel button for admins
-    if is_admin(user_id):
-        keyboard.append([InlineKeyboardButton("🛡️ Админ-панель", callback_data="admin_panel")])
-    
     return InlineKeyboardMarkup(keyboard)
 
 # User rating system
 def initialize_user_ratings():
     """Initialize rating system for existing users"""
-    users = db.get_all_users()
+    users = db.all()
     for user_data in users:
         if 'ratings' not in user_data:
-            db.create_or_update_user(user_data['user_id'], {'ratings': [], 'total_rating': 0.0, 'rating_count': 0})
+            db.update({'ratings': [], 'total_rating': 0.0, 'rating_count': 0}, User.user_id == user_data['user_id'])
 
 def add_rating(rated_user_id, rating_value, rater_user_id):
     """Add a rating for a user"""
-    user = db.get_user(rated_user_id)
+    user = db.search(User.user_id == rated_user_id)
     if user:
-        ratings = user.get('ratings', [])
+        user_data = user[0]
+        ratings = user_data.get('ratings', [])
 
         # Check if this rater already rated this user
         existing_rating = next((r for r in ratings if r['rater_id'] == rater_user_id), None)
@@ -1470,18 +1589,18 @@ def add_rating(rated_user_id, rating_value, rater_user_id):
         average_rating = total_rating / rating_count if rating_count > 0 else 0.0
 
         # Update database
-        db.create_or_update_user(rated_user_id, {
+        db.update({
             'ratings': ratings,
             'total_rating': average_rating,
             'rating_count': rating_count
-        })
+        }, User.user_id == rated_user_id)
 
         return average_rating
     return None
 
 def get_user_rating(user_id):
     """Get user's current rating"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     if user:
         return {
             'rating': user.get('total_rating', 0.0),
@@ -1525,33 +1644,14 @@ async def add_like(from_user_id, to_user_id):
                 logger.info(f"⚠️ Sent like from {from_user_id} to {to_user_id} already exists")
                 return doc
 
-        # PostgreSQL atomic updates
-        try:
-            # Update target user's received likes
-            target_user = db.get_user(to_user_id)
-            if target_user:
-                received_likes = target_user.get('received_likes', [])
-                unnotified_likes = target_user.get('unnotified_likes', [])
-                
-                if from_user_id not in received_likes:
-                    received_likes.append(from_user_id)
-                    unnotified_likes.append(from_user_id)
-                    db.update_user(to_user_id, {
-                        'received_likes': received_likes,
-                        'unnotified_likes': unnotified_likes
-                    })
-                    logger.info(f"✅ Added like from {from_user_id} to {to_user_id}")
+        # Perform atomic updates
+        target_updated = db.update(update_target_likes, Query().user_id == to_user_id)
+        if not target_updated:
+            logger.error(f"❌ Target user {to_user_id} not found in database")
             
-            # Update sender's sent likes
-            sender_user = db.get_user(from_user_id)
-            if sender_user:
-                sent_likes = sender_user.get('sent_likes', [])
-                if to_user_id not in sent_likes:
-                    sent_likes.append(to_user_id)
-                    db.update_user(from_user_id, {'sent_likes': sent_likes})
-                    logger.info(f"✅ Updated sent likes for user {from_user_id}")
-        except Exception as update_error:
-            logger.error(f"❌ Error in PostgreSQL like update: {update_error}")
+        sender_updated = db.update(update_sender_likes, Query().user_id == from_user_id)
+        if not sender_updated:
+            logger.error(f"❌ Sender user {from_user_id} not found in database")
 
     except Exception as e:
         logger.error(f"❌ Error adding like: {e}")
@@ -1560,7 +1660,7 @@ async def add_like(from_user_id, to_user_id):
 
 def get_top_rated_users(min_rating=0.0, max_rating=5.0, current_user_id=None):
     """Get users within rating range"""
-    users = db.get_all_users()
+    users = db.all()
     filtered_users = []
 
     for user_data in users:
@@ -1588,15 +1688,15 @@ def matches_interest_criteria(user1: dict, user2: dict) -> bool:
     user1_gender = user1.get("gender", "")
     user2_gender = user2.get("gender", "")
 
-    # Check if user1 is interested in user2's gender (support both Russian and English)
-    user1_interested = (user1_interest in ["both", "Все равно"] or 
-                       (user1_interest in ["female", "Ж"] and user2_gender in ["female", "Ж"]) or
-                       (user1_interest in ["male", "М"] and user2_gender in ["male", "М"]))
+    # Check if user1 is interested in user2's gender
+    user1_interested = (user1_interest == "both" or 
+                       (user1_interest == "female" and user2_gender == "female") or
+                       (user1_interest == "male" and user2_gender == "male"))
 
-    # Check if user2 is interested in user1's gender (support both Russian and English)
-    user2_interested = (user2_interest in ["both", "Все равно"] or
-                       (user2_interest in ["female", "Ж"] and user1_gender in ["female", "Ж"]) or
-                       (user2_interest in ["male", "М"] and user1_gender in ["male", "М"]))
+    # Check if user2 is interested in user1's gender  
+    user2_interested = (user2_interest == "both" or
+                       (user2_interest == "female" and user1_gender == "female") or
+                       (user2_interest == "male" and user1_gender == "male"))
 
     return user1_interested and user2_interested
 
@@ -1614,24 +1714,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data['in_conversation'] = True
 
     # Check if user exists and has complete profile
-    existing_user = db.get_user(user_id)
-    logger.info(f"DEBUG: User {user_id} exists: {existing_user is not None}")
-    if existing_user:
-        is_complete = is_profile_complete_dict(existing_user)
-        logger.info(f"DEBUG: User {user_id} profile complete: {is_complete} (type: {type(is_complete)})")
-        logger.info(f"DEBUG: User data: {existing_user}")
-        
-        if is_complete:
-            # User already exists with complete profile - show main menu
-            context.user_data.pop('in_conversation', None)  # Clear conversation flag
-            await update.message.reply_text(
-                get_text(user_id, "main_menu"),
-                reply_markup=get_main_menu(user_id)
-            )
-            return ConversationHandler.END
+    existing_user = db.get(Query().user_id == user_id)
+    if existing_user and is_profile_complete(existing_user):
+        # User already exists with complete profile - show main menu
+        context.user_data.pop('in_conversation', None)  # Clear conversation flag
+        await update.message.reply_text(
+            get_text(user_id, "main_menu"),
+            reply_markup=get_main_menu(user_id)
+        )
+        return ConversationHandler.END
 
     # If user exists but profile incomplete, continue where they left off
-    if existing_user and not is_profile_complete_dict(existing_user):
+    if existing_user and not is_profile_complete(existing_user):
         lang = existing_user.get('lang', 'ru')
         
         # Fill context with existing data where available
@@ -1711,7 +1805,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     # New user - start with language selection first
     # Set default language to English for new users
-    db.create_or_update_user(user_id, {'lang': 'en'})
+    db.upsert({'user_id': user_id, 'lang': 'en'}, Query().user_id == user_id)
     
     # Show language selection first
     text = "🌐 Choose your language / Выберите язык:"
@@ -1771,7 +1865,7 @@ async def handle_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             logger.info(f"User {user_id} entered age: {age}")
 
             # Get current user to check language
-            user = db.get_user(user_id)
+            user = db.get(User.user_id == user_id)
             
             keyboard = [
                 [KeyboardButton(get_text(user_id, "btn_girl"))],
@@ -1877,7 +1971,7 @@ async def handle_interest(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
 
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
 
     await update.message.reply_text(
@@ -1912,8 +2006,8 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             longitude = update.message.location.longitude
 
             # Show loading message
-            user = db.get_user(user_id)
-            lang = user.lang if user else 'ru'
+            user = db.get(User.user_id == user_id)
+            lang = user.get('lang', 'ru') if user else 'ru'
             
             if lang == 'en':
                 loading_msg = "📍 Detecting your city from GPS coordinates..."
@@ -1963,10 +2057,13 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         except Exception as e:
             logger.error(f"Error processing GPS location: {e}")
 
-            user = db.get_user(user_id)
-            lang = user.lang if user else 'ru'
+            user = db.get(User.user_id == user_id)
+            lang = user.get('lang', 'ru') if user else 'ru'
 
-            error_msg = get_text(user_id, "gps_processing_error")
+            if lang == 'en':
+                error_msg = "❌ Error processing GPS location. Please enter your city manually:"
+            else:
+                error_msg = "❌ Ошибка обработки GPS. Пожалуйста, введите город вручную:"
 
             keyboard = [
                 [KeyboardButton("📍 Попробовать еще раз" if lang == 'ru' else "📍 Try again", request_location=True)],
@@ -1978,7 +2075,7 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     # Handle manual city input button
     elif update.message.text == "✍️ Ввести город вручную" or update.message.text == "✍️ Enter city manually":
-        user = db.get_user(user_id)
+        user = db.get(User.user_id == user_id)
         lang = user.get('lang', 'ru') if user else 'ru'
 
         if lang == 'en':
@@ -2007,7 +2104,7 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     # If neither location nor valid text, ask again
     else:
-        user = db.get_user(user_id)
+        user = db.get(User.user_id == user_id)
         lang = user.get('lang', 'ru') if user else 'ru'
 
         if lang == 'en':
@@ -2020,9 +2117,11 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
     # Only show name prompt if we have city data
     if context.user_data.get("city"):
+        keyboard = [[KeyboardButton(get_text(user_id, "back_button"))]]
+        reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text(
             get_text(user_id, "questionnaire_name"),
-            reply_markup=ReplyKeyboardRemove()
+            reply_markup=reply_markup
         )
         return NAME
     else:
@@ -2042,8 +2141,8 @@ async def handle_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         
-        user = db.get_user(user_id)
-        lang = user.lang if user else 'ru'
+        user = db.get(User.user_id == user_id)
+        lang = user.get('lang', 'ru') if user else 'ru'
 
         if lang == 'en':
             location_text = "📍 Share your location:\n\nYou can either share your GPS location or enter your city manually."
@@ -2099,7 +2198,7 @@ async def handle_bio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def show_registration_nd_traits(update, context, user_id):
     """Show ND traits selection during registration"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
 
     text = get_text(user_id, "nd_selection_prompt") + "\n\n"
@@ -2220,21 +2319,17 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 photos_count = len(photos_list)
 
                 if photos_count < 3:
-                    # Ask for more photos with localized text
+                    # Ask for more photos
                     keyboard = [
                         [KeyboardButton(get_text(user_id, "btn_done"))],
                         [KeyboardButton(get_text(user_id, "btn_skip_remaining"))],
                         [KeyboardButton(get_text(user_id, "back_button"))]
                     ]
                     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-                    
-                    lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
-                    if lang == 'en':
-                        photo_msg = f"✅ Photo {photos_count}/3 added!\n\nSend more photos or press a button:"
-                    else:
-                        photo_msg = f"✅ Фото {photos_count}/3 добавлено!\n\nОтправьте еще фото или нажмите кнопку:"
-                    
-                    await update.message.reply_text(photo_msg, reply_markup=reply_markup)
+                    await update.message.reply_text(
+                        f"✅ Фото {photos_count}/3 добавлено!\n\nОтправьте еще фото или нажмите кнопку:",
+                        reply_markup=reply_markup
+                    )
                     return PHOTO
                 else:
                     # All 3 photos uploaded, proceed to save
@@ -2247,10 +2342,10 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                     [KeyboardButton(get_text(user_id, "back_button"))]
                 ]
                 reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-                
-                lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
-                max_msg = "⚠️ Maximum 3 photos. Press 'Done' to continue." if lang == 'en' else "⚠️ Максимум 3 фото. Нажмите 'Готово' чтобы продолжить."
-                await update.message.reply_text(max_msg, reply_markup=reply_markup)
+                await update.message.reply_text(
+                    "⚠️ Максимум 3 фото. Нажмите 'Готово' чтобы продолжить.",
+                    reply_markup=reply_markup
+                )
                 return PHOTO
 
         # Handle video uploads
@@ -2260,9 +2355,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             context.user_data["media_id"] = video.file_id
             context.user_data["photos"] = []  # Clear photos array when using video
             
-            lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
-            success_msg = "✅ Video added!" if lang == 'en' else "✅ Видео добавлено!"
-            await update.message.reply_text(success_msg)
+            await update.message.reply_text("✅ Видео добавлено!")
             await save_user_profile(update, context)
             return ConversationHandler.END
 
@@ -2273,22 +2366,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             context.user_data["media_id"] = video_note.file_id
             context.user_data["photos"] = []  # Clear photos array when using video note
             
-            lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
-            success_msg = "✅ Video message added!" if lang == 'en' else "✅ Видео-сообщение добавлено!"
-            await update.message.reply_text(success_msg)
-            await save_user_profile(update, context)
-            return ConversationHandler.END
-
-        # Handle GIF/animation uploads (NEW FEATURE)
-        elif update.message.animation:
-            animation = update.message.animation
-            context.user_data["media_type"] = "animation"
-            context.user_data["media_id"] = animation.file_id
-            context.user_data["photos"] = []  # Clear photos array when using animation
-            
-            lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
-            success_msg = "✅ GIF added!" if lang == 'en' else "✅ GIF добавлен!"
-            await update.message.reply_text(success_msg)
+            await update.message.reply_text("✅ Видео-сообщение добавлено!")
             await save_user_profile(update, context)
             return ConversationHandler.END
 
@@ -2312,7 +2390,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
             ]
             reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
             await update.message.reply_text(
-                get_text(user_id, "media_upload_error"),
+                "❌ Ошибка при загрузке медиа. Попробуйте еще раз.",
                 reply_markup=reply_markup
             )
         except Exception as e2:
@@ -2339,7 +2417,7 @@ async def save_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for field in required_fields:
             if field not in user_data or not user_data[field]:
                 logger.error(f"Missing or empty required field: {field}")
-                await update.message.reply_text(get_text(user_id, "profile_missing_field_error").format(field=field))
+                await update.message.reply_text(f"❌ Ошибка: отсутствует поле '{field}'. Начните заново с /start")
                 return ConversationHandler.END
 
         # Save to database
@@ -2374,7 +2452,7 @@ async def save_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "rating_count": 0
         }
 
-        db.create_or_update_user(user_id, profile_data)
+        db.upsert(profile_data, Query().user_id == user_id)
         logger.info(f"Profile saved for user {user_id}")
 
         photos_saved_count = len(photos) if photos else 1
@@ -2391,23 +2469,19 @@ async def save_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error saving user profile: {e}")
         await update.message.reply_text(
-            get_text(user_id, "profile_save_error")
+            "❌ Ошибка при сохранении профиля. Попробуйте еще раз или обратитесь в поддержку."
         )
         return ConversationHandler.END
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle callback queries with optimized response"""
+    """Handle callback queries"""
     query = update.callback_query
-    # Answer callback immediately to improve perceived performance
     await query.answer()
 
     user_id = query.from_user.id
     data = query.data
-    
-    logger.info(f"🔍 Callback received: user_id={user_id}, data='{data}'")
 
     if not data:
-        logger.warning(f"❌ Empty callback data from user {user_id}")
         return
 
     try:
@@ -2428,13 +2502,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data == "change_name":
             await start_change_name(query, context, user_id)
         elif data == "change_city":
-            logger.info(f"🏙️ Change city button clicked by user {user_id}")
-            try:
-                await start_change_city(query, context, user_id)
-                logger.info(f"✅ start_change_city completed successfully for user {user_id}")
-            except Exception as city_error:
-                logger.error(f"❌ Error in start_change_city for user {user_id}: {city_error}")
-                raise
+            await start_change_city(query, context, user_id)
         elif data == "change_city_setting":
             await start_change_city_setting(query, context, user_id)
         elif data == "my_likes":
@@ -2445,13 +2513,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await show_feedback_menu(query, user_id)
         elif data == "statistics":
             await show_statistics(query, user_id)
-        elif data == "support_project":
-            await show_support_menu(query, user_id)
         elif data == "back_to_menu":
-            # Clear any conversation state and lingering keyboards
-            context.user_data.clear()
-            
-            # Ultra-fast direct menu transition
             await safe_edit_message(
                 query,
                 get_text(user_id, "main_menu"),
@@ -2505,11 +2567,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.answer("❌ Ошибка обработки. Попробуйте еще раз.")
                 return
         elif data == "prev_profile":
-            logger.info(f"📱 Navigation: User {user_id} pressed PREV button")
             await show_previous_profile(query, context, user_id)
         elif data == "next_profile":
-            logger.info(f"📱 Navigation: User {user_id} pressed NEXT button")
-            await show_next_profile_as_new_message(query, context, user_id)
+            await show_next_profile(query, context, user_id)
         elif data == "no_action":
             await query.answer()  # Just acknowledge the callback, do nothing
         elif data == "continue_browsing":
@@ -2680,35 +2740,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await show_next_recommendation_result(query, context, user_id)
         elif data == "next_incoming_like":
             await show_next_incoming_like(query, context, user_id)
-        elif data.startswith("report_user_"):
-            try:
-                reported_user_id = int(data.split("_")[2])
-                await handle_report_user(query, context, user_id, reported_user_id)
-            except (ValueError, IndexError) as e:
-                logger.error(f"Error parsing report_user callback data '{data}': {e}")
-                await query.answer("❌ Ошибка обработки. Попробуйте еще раз.")
-                return
-        elif data.startswith("report_reason_"):
-            try:
-                # Format: report_reason_spam_12345678
-                parts = data.split("_", 3)
-                reason = parts[2]
-                reported_user_id = int(parts[3])
-                await submit_user_report(query, context, user_id, reported_user_id, reason)
-            except (ValueError, IndexError) as e:
-                logger.error(f"Error parsing report_reason callback data '{data}': {e}")
-                await query.answer("❌ Ошибка обработки. Попробуйте еще раз.")
-                return
-        elif data == "admin_panel":
-            await show_admin_panel(query, user_id)
-        elif data == "admin_reports":
-            await show_admin_reports(query, user_id)
-        elif data == "admin_users":
-            await show_admin_users(query, user_id)
         
         elif data.startswith("interest_"):
             interest = data.split("interest_")[1]
-            db.create_or_update_user(user_id, {'interest': interest})
+            db.update({'interest': interest}, User.user_id == user_id)
             await query.edit_message_text(
                 "✅ Предпочтения обновлены!",
                 reply_markup=InlineKeyboardMarkup([[
@@ -2719,13 +2754,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await confirm_recreate_profile(query, user_id)
         elif data == "confirm_recreate":
             # Start profile recreation
-            user = db.get_user(user_id)
+            user = db.get(User.user_id == user_id)
             current_lang = user.get('lang', 'ru') if user else 'ru'
 
             # Keep the language setting but clear all other profile data
             user_lang = user.get('lang', 'ru') if user else 'ru'
 
-            db.create_or_update_user(user_id, {
+            db.update({
                 'name': '',
                 'age': '',
                 'gender': '',
@@ -2739,7 +2774,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'nd_traits': [],
                 'nd_symptoms': [],
                 'lang': user_lang
-            })
+            }, User.user_id == user_id)
 
             # Clear conversation data
             context.user_data.clear()
@@ -2759,7 +2794,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await reset_user_matches(query, user_id)
         elif data == "confirm_delete":
             # Delete user account
-            user = db.get_user(user_id)
+            user = db.get(User.user_id == user_id)
             user_lang = user.get('lang', 'ru') if user else 'ru'
             
             if user_lang == 'en':
@@ -2767,7 +2802,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 delete_message = "🗑️ Аккаунт удален.\n\nДо свидания! Используйте /start если захотите вернуться."
             
-            db.delete_user(user_id)
+            db.remove(User.user_id == user_id)
             await query.edit_message_text(delete_message)
         elif data == "feedback_complaint":
             await start_feedback(query, context, user_id, "complaint")
@@ -2799,10 +2834,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await start_browsing_unfiltered_profiles(query, context, user_id)
         elif data.startswith("lang_"):
             lang = data.split("_")[1]
-            db.update_user(user_id, {'lang': lang})
+            db.update({'lang': lang}, User.user_id == user_id)
             
             # Check if this is a new user who needs to create a profile
-            user = db.get_user(user_id)
+            user = db.get(Query().user_id == user_id)
             
             if lang == 'ru':
                 success_text = "✅ Язык установлен: Русский"
@@ -2812,7 +2847,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(success_text)
             
             # If user has no profile data, start profile creation
-            if not is_profile_complete_dict(user):
+            if not is_profile_complete(user):
                 await asyncio.sleep(1)  # Brief pause
                 welcome_text = get_text(user_id, "welcome")
                 age_text = get_text(user_id, "questionnaire_age")
@@ -2844,23 +2879,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data.startswith("rate_app_"):
             rating = int(data.split("_")[2])
             await save_app_rating(query, user_id, rating)
-        elif data.startswith("support_"):
-            amount = data.split("_")[1]
-            if amount == "custom":
-                await start_custom_amount(query, context, user_id)
-            else:
-                await send_payment_invoice(query, user_id, int(amount))
-        elif data == "payment_success":
-            await handle_payment_success(query, user_id)
-        elif data == "payment_cancelled":
-            await handle_payment_cancelled(query, user_id)
         else:
             await query.edit_message_text("Функция в разработке")
 
     except Exception as e:
         logger.error(f"Error in handle_callback: {e}")
         try:
-            user = db.get_user(user_id)
+            user = db.get(User.user_id == user_id)
             lang = user.get('lang', 'ru') if user else 'ru'
             error_text = "Произошла ошибка. Попробуйте еще раз." if lang == 'ru' else "An error occurred. Please try again."
             await safe_edit_message(
@@ -2880,10 +2905,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_user_profile(query, user_id):
     """Show user's own profile"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     if not user:
         await query.edit_message_text(
-            get_text(user_id, "profile_not_found"),
+            "❌ Профиль не найден. Отправьте /start для создания профиля.",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")
             ]])
@@ -2891,7 +2916,7 @@ async def show_user_profile(query, user_id):
         return
     
     # Check profile completion with detailed logging
-    is_complete = is_profile_complete_dict(user)
+    is_complete = is_profile_complete(user)
     logger.info(f"Profile completion check for user {user_id}: {is_complete}")
     logger.info(f"User data: name={user.get('name')}, age={user.get('age')}, photos={len(user.get('photos', []))}, media_id={bool(user.get('media_id'))}")
     
@@ -2960,15 +2985,15 @@ async def show_user_profile(query, user_id):
             traits_dict = ND_TRAITS.get(lang, ND_TRAITS['ru'])
             trait_names = [traits_dict.get(trait, trait) for trait in nd_traits if trait in traits_dict and trait != 'none']
             if trait_names:
-                profile_text += f"🧠 {get_text(user_id, 'nd_traits')}: *{', '.join(trait_names)}*\n"
+                profile_text += f"🧠 Нейроотличия: *{', '.join(trait_names)}*\n"
 
         if nd_symptoms:
             symptoms_dict = ND_SYMPTOMS.get(lang, ND_SYMPTOMS['ru'])
             symptom_names = [symptoms_dict.get(symptom, symptom) for symptom in nd_symptoms if symptom in symptoms_dict]
             if symptom_names:
-                profile_text += f"🔍 {get_text(user_id, 'nd_characteristics_label')}: *{', '.join(symptom_names[:3])}"
+                profile_text += f"🔍 Характеристики: *{', '.join(symptom_names[:3])}"
                 if len(symptom_names) > 3:
-                    profile_text += f"{get_text(user_id, 'and_more')}{len(symptom_names) - 3}"
+                    profile_text += f" и еще {len(symptom_names) - 3}"
                 profile_text += "*\n"
 
     profile_text += f"💭 {user['bio']}\n"
@@ -2982,14 +3007,9 @@ async def show_user_profile(query, user_id):
         [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
     ]
 
-    # Send profile with media if available
+    # Send profile with photo if available
     photos = user.get('photos', [])
-    media_id = user.get('media_id', '').strip()
-    media_type = user.get('media_type', '').strip()
-    
-    # Handle different media types
-    if photos and len(photos) > 0:
-        # Multiple photos - send first photo
+    if photos:
         try:
             await query.message.reply_photo(
                 photo=photos[0],
@@ -2999,61 +3019,32 @@ async def show_user_profile(query, user_id):
             )
             await query.delete_message()
         except:
-            await safe_edit_message(query, profile_text, InlineKeyboardMarkup(keyboard))
-    elif media_id and media_type:
-        # Single media (video, animation, video_note)
-        try:
-            if media_type == "video":
-                await query.message.reply_video(
-                    video=media_id,
-                    caption=profile_text,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode='Markdown'
-                )
-            elif media_type == "animation":
-                await query.message.reply_animation(
-                    animation=media_id,
-                    caption=profile_text,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode='Markdown'
-                )
-            elif media_type == "video_note":
-                await query.message.reply_video_note(
-                    video_note=media_id,
-                    reply_markup=InlineKeyboardMarkup(keyboard)
-                )
-                # Send text separately for video notes (they don't support captions)
-                await query.message.reply_text(profile_text, parse_mode='Markdown')
-            else:
-                # Fallback to photo
-                await query.message.reply_photo(
-                    photo=media_id,
-                    caption=profile_text,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode='Markdown'
-                )
-            await query.delete_message()
-        except Exception as e:
-            logger.error(f"Failed to send media profile: {e}")
-            await safe_edit_message(query, profile_text, InlineKeyboardMarkup(keyboard))
+            await query.edit_message_text(
+                profile_text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
     else:
-        # No media - just text
-        await safe_edit_message(query, profile_text, InlineKeyboardMarkup(keyboard))
+        await query.edit_message_text(
+            profile_text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
 
 async def browse_profiles(query, context, user_id):
     """Browse other user profiles"""
-    current_user = db.get_user(user_id)
+    current_user = db.get(User.user_id == user_id)
     if not current_user:
         await safe_edit_message(
             query,
-            get_text(user_id, "profile_not_found"),
+            "❌ Профиль не найден. Отправьте /start для создания профиля.",
             InlineKeyboardMarkup([[
                 InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")
             ]])
         )
         return
     
-    if not is_profile_complete_dict(current_user):
+    if not is_profile_complete(current_user):
         await safe_edit_message(
             query,
             "⚠️ Для просмотра анкет других пользователей рекомендуется завершить свой профиль.\n\nВы можете продолжить заполнение профиля или попробовать просматривать анкеты сейчас.",
@@ -3115,7 +3106,34 @@ def calculate_location_priority(current_user, other_user):
         else:
             return 5  # Different continents
     
-    # Fallback to improved city matching if no GPS coordinates
+    # Enhanced fallback: try to get coordinates from city names using our coordinate database
+    current_city = current_user.get('city', '').strip()
+    other_city = other_user.get('city', '').strip()
+    
+    if current_city and other_city:
+        current_coords = get_city_coordinates(current_city)
+        other_coords = get_city_coordinates(other_city)
+        
+        if current_coords and other_coords:
+            current_lat, current_lon = current_coords
+            other_lat, other_lon = other_coords
+            distance_km = calculate_distance_km(current_lat, current_lon, other_lat, other_lon)
+            
+            # Same distance-based priority levels
+            if distance_km <= 5:   # Same neighborhood
+                return 0
+            elif distance_km <= 25:  # Same city/metro area
+                return 1
+            elif distance_km <= 100:  # Same region
+                return 2
+            elif distance_km <= 500:  # Same country/state
+                return 3
+            elif distance_km <= 2000:  # Same continent
+                return 4
+            else:
+                return 5  # Different continents
+    
+    # Final fallback to city name matching if no coordinates available
     return calculate_city_proximity(current_user, other_user)
 
 def calculate_city_proximity(current_user, other_user):
@@ -3184,10 +3202,10 @@ def get_regional_proximity(city1, city2):
 
 async def start_browsing_unfiltered_profiles(query, context, user_id):
     """Start browsing ALL profiles without gender filtering but with smart prioritization"""
-    current_user = db.get_user(user_id)
+    current_user = db.get(User.user_id == user_id)
     
     # Get all users except current user
-    all_users = db.get_all_users()
+    all_users = db.all()
     logger.info(f"Total users in database: {len(all_users)}")
     
     current_age = current_user.get("age", 18)
@@ -3285,7 +3303,7 @@ async def start_browsing_unfiltered_profiles(query, context, user_id):
     logger.info(f"Found {len(scored_profiles)} available profiles for user {user_id} (unfiltered)")
 
     if not scored_profiles:
-        user = db.get_user(user_id)
+        user = db.get(User.user_id == user_id)
         lang = user.get('lang', 'ru') if user else 'ru'
         
         if lang == 'en':
@@ -3323,10 +3341,10 @@ async def start_browsing_unfiltered_profiles(query, context, user_id):
 
 async def start_browsing_profiles(query, context, user_id):
     """Start browsing profiles with improved matching logic and graceful fallbacks"""
-    current_user = db.get_user(user_id)
+    current_user = db.get(User.user_id == user_id)
     
     # Get all users except current user
-    all_users = db.get_all_users()
+    all_users = db.all()
     logger.info(f"Total users in database: {len(all_users)}")
     
     current_age = current_user.get("age", 18)
@@ -3522,7 +3540,7 @@ async def start_browsing_profiles(query, context, user_id):
 
 async def show_filter_options(query, context, user_id):
     """Show filter options for browsing"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
     current_interest = user.get('interest', 'both')
     
@@ -3566,86 +3584,9 @@ async def apply_interest_filter(query, context, user_id):
     context.user_data['use_filters'] = True
     await start_browsing_profiles(query, context, user_id)
 
-async def send_profile_media(query, profile_text, keyboard, profile):
-    """Send profile with appropriate media type (photo, video, GIF)"""
-    try:
-        media_type = profile.get('media_type', 'photo')
-        media_id = profile.get('media_id', '')
-        photos = profile.get('photos', [])
-        
-        # Priority: photos array > single media > fallback to text
-        if photos:
-            await query.message.reply_photo(
-                photo=photos[0],
-                caption=profile_text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
-            )
-        elif media_id:
-            if media_type == 'video':
-                await query.message.reply_video(
-                    video=media_id,
-                    caption=profile_text,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode='Markdown'
-                )
-            elif media_type == 'animation':
-                await query.message.reply_animation(
-                    animation=media_id,
-                    caption=profile_text,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode='Markdown'
-                )
-            elif media_type == 'video_note':
-                # Video notes don't support captions, so send separately
-                await query.message.reply_video_note(video_note=media_id)
-                await query.message.reply_text(
-                    profile_text,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode='Markdown'
-                )
-            else:
-                # Default to photo for legacy compatibility
-                await query.message.reply_photo(
-                    photo=media_id,
-                    caption=profile_text,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode='Markdown'
-                )
-        else:
-            # No media, send text only
-            await query.message.reply_text(
-                profile_text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
-            )
-        
-        # Clean up the query message
-        try:
-            await query.delete_message()
-        except:
-            pass
-            
-    except Exception as e:
-        logger.error(f"Error sending profile media: {e}")
-        # Fallback to text only
-        try:
-            await query.message.reply_text(
-                profile_text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
-            )
-            await query.delete_message()
-        except:
-            await query.edit_message_text(
-                profile_text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
-            )
-
 async def show_profile_card(query, context, user_id, profile):
     """Show a profile card with navigation matching the desired interface"""
-    current_user = db.get_user(user_id)
+    current_user = db.get(User.user_id == user_id)
     
     profile_text = f"👤 *{profile['name']}*, {profile['age']} лет\n"
     
@@ -3714,8 +3655,7 @@ async def show_profile_card(query, context, user_id, profile):
 
     # Home button row
     bottom_buttons = [
-        create_home_button(),
-        create_report_button(profile['user_id'])
+        InlineKeyboardButton("🏠", callback_data="back_to_menu")
     ]
 
     keyboard = [message_buttons, nav_buttons, bottom_buttons]
@@ -3725,12 +3665,25 @@ async def show_profile_card(query, context, user_id, profile):
     # Don't delete previous message - just send new one
     # This way old profiles stay visible in chat history
     
-    # Send profile with appropriate media type (using new unified function)
-    try:
-        await send_profile_media(query, profile_text, keyboard, profile)
-    except Exception as e:
-        logger.error(f"Error in send_profile_media: {e}")
-        # Ultimate fallback - just send text
+    if photos:
+        try:
+            # Send new photo message
+            await query.message.reply_photo(
+                photo=photos[0],
+                caption=profile_text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            logger.error(f"Error sending photo: {e}")
+            # Fallback to text only
+            await query.message.reply_text(
+                profile_text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+    else:
+        # No photos - send as text message
         await query.message.reply_text(
             profile_text,
             reply_markup=InlineKeyboardMarkup(keyboard),
@@ -3740,8 +3693,8 @@ async def show_profile_card(query, context, user_id, profile):
 async def handle_like_profile(query, context, user_id, target_id):
     """Handle liking a profile"""
     try:
-        current_user = db.get_user(user_id)
-        target_user = db.get_user(target_id)
+        current_user = db.get(Query().user_id == user_id)
+        target_user = db.get(Query().user_id == target_id)
 
         if not current_user or not target_user:
             await safe_edit_message(
@@ -3826,33 +3779,32 @@ async def handle_pass_profile(query, context, user_id):
         current_profile = profiles[current_index]
         target_id = current_profile['user_id']
         
-        # Add to declined likes so it won't show again
-        user = db.get_user(user_id)
-        if user:
-            declined_likes = user.get('declined_likes', [])
+        # Add to declined likes so it won't show again - ATOMIC
+        def atomic_decline_add_profile(doc):
+            declined_likes = doc.get('declined_likes', [])
             if target_id not in declined_likes:
                 declined_likes.append(target_id)
-                db.create_or_update_user(user_id, {'declined_likes': declined_likes})
+            return {**doc, 'declined_likes': declined_likes}
+        
+        db.update(atomic_decline_add_profile, User.user_id == user_id)
     
     # Send pass confirmation as new message
     await query.message.reply_text(get_text(user_id, "profile_passed"))
     # Show next profile as new message
     await show_next_profile_as_new_message(query, context, user_id)
 
-# Legacy function removed - now uses show_next_profile_as_new_message directly
+async def show_next_profile(query, context, user_id):
+    """Show next profile in browsing (legacy function for compatibility)"""
+    await show_next_profile_as_new_message(query, context, user_id)
 
 async def show_next_profile_as_new_message(query, context, user_id):
     """Show next profile as a new message (not editing existing)"""
     profiles = context.user_data.get('browsing_profiles', [])
     current_index = context.user_data.get('current_profile_index', 0)
-    
-    logger.info(f"📱 NEXT: current_index={current_index}, total_profiles={len(profiles)}")
 
     if current_index + 1 < len(profiles):
         context.user_data['current_profile_index'] = current_index + 1
         next_profile = profiles[current_index + 1]
-        
-        logger.info(f"📱 NEXT: Moving to index {current_index + 1}, showing profile {next_profile.get('name', 'Unknown')}")
         
         # Create a mock query object that won't try to edit the message
         class MockQuery:
@@ -3863,8 +3815,7 @@ async def show_next_profile_as_new_message(query, context, user_id):
         mock_query = MockQuery(query)
         await show_profile_card(mock_query, context, user_id, next_profile)
     else:
-        logger.info(f"📱 NEXT: No more profiles available")
-        user = db.get_user(user_id)
+        user = db.get(User.user_id == user_id)
         lang = user.get('lang', 'ru') if user else 'ru'
         
         no_more_text = "Больше нет анкет для просмотра" if lang == 'ru' else "No more profiles to browse"
@@ -3881,38 +3832,23 @@ async def show_previous_profile(query, context, user_id):
     """Show previous profile in browsing"""
     profiles = context.user_data.get('browsing_profiles', [])
     current_index = context.user_data.get('current_profile_index', 0)
-    
-    logger.info(f"📱 PREV: current_index={current_index}, total_profiles={len(profiles)}")
 
     if current_index > 0:
         context.user_data['current_profile_index'] = current_index - 1
         prev_profile = profiles[current_index - 1]
-        logger.info(f"📱 PREV: Moving to index {current_index - 1}, showing profile {prev_profile.get('name', 'Unknown')}")
         await show_profile_card(query, context, user_id, prev_profile)
     else:
-        logger.info(f"📱 PREV: Already at first profile")
         await query.answer("Это первая анкета")
 
 async def start_change_photo(query, context, user_id):
-    """Start photo change process with media upload support"""
+    """Start photo change process"""
     context.user_data['changing_photo'] = True
-    context.user_data['photos'] = []  # Initialize photos array for editing
-    
-    user = db.get_user(user_id)
-    lang = user.get('lang', 'ru') if user else 'ru'
-    
-    if lang == 'en':
-        prompt = "📸 Update your profile pictures!\n\n✨ You can now:\n• Upload up to 3 photos\n• Use a video as your profile picture\n• Use a GIF/animation as your profile picture\n\nSend your media or press Cancel:"
-        cancel_text = "❌ Cancel"
-    else:
-        prompt = "📸 Обновите ваши фото профиля!\n\n✨ Теперь вы можете:\n• Загрузить до 3 фото\n• Использовать видео как фото профиля\n• Использовать GIF/анимацию как фото профиля\n\nОтправьте медиа или нажмите Отмена:"
-        cancel_text = "❌ Отмена"
 
     await safe_edit_message(
         query,
-        prompt,
+        get_text(user_id, "new_photo_prompt"),
         InlineKeyboardMarkup([[
-            InlineKeyboardButton(cancel_text, callback_data="profile_settings")
+            InlineKeyboardButton("❌ Отмена", callback_data="profile_settings")
         ]])
     )
 
@@ -3932,7 +3868,7 @@ async def start_change_name(query, context, user_id):
     """Start name change process"""
     context.user_data['changing_name'] = True
 
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     current_lang = user.get('lang', 'ru') if user else 'ru'
 
     if current_lang == 'en':
@@ -3965,59 +3901,42 @@ async def start_change_name(query, context, user_id):
 
 async def start_change_city(query, context, user_id):
     """Start city change process"""
-    logger.info(f"🏙️ start_change_city called for user {user_id}")
-    
+    context.user_data['changing_city'] = True
+
+    user = db.get(User.user_id == user_id)
+    current_lang = user.get('lang', 'ru') if user else 'ru'
+
+    if current_lang == 'en':
+        prompt = "📍 Change your city:\n\nYou can share your GPS location or enter city manually:"
+        gps_btn = "📍 Share GPS Location"
+        manual_btn = "✍️ Enter Manually"
+        cancel_text = "❌ Cancel"
+    else:
+        prompt = "📍 Изменить город:\n\nВы можете поделиться GPS-локацией или ввести город вручную:"
+        gps_btn = "📍 Поделиться GPS"
+        manual_btn = "✍️ Ввести вручную"
+        cancel_text = "❌ Отмена"
+
+    # Try to edit message text, if it fails (because message has photo), send new message
     try:
-        context.user_data['changing_city'] = True
-
-        user = db.get_user(user_id)
-        current_lang = user.get('lang', 'ru') if user else 'ru'
-        logger.info(f"User {user_id} language: {current_lang}")
-
-        if current_lang == 'en':
-            prompt = "📍 Change your city:\n\nYou can share your GPS location or enter city manually:"
-            gps_btn = "📍 Share GPS Location"
-            manual_btn = "✍️ Enter Manually"
-            cancel_text = "❌ Cancel"
-        else:
-            prompt = "📍 Изменить город:\n\nВы можете поделиться GPS-локацией или ввести город вручную:"
-            gps_btn = "📍 Поделиться GPS"
-            manual_btn = "✍️ Ввести вручную"
-            cancel_text = "❌ Отмена"
-
-        logger.info(f"Attempting to delete message for user {user_id}")
-        # Try to delete message safely
-        try:
-            await query.delete_message()
-            logger.info(f"Message deleted successfully for user {user_id}")
-        except Exception as del_error:
-            logger.warning(f"Could not delete message for user {user_id}: {del_error}")
-        
-        # Send message with location request keyboard
-        keyboard = [
-            [KeyboardButton(gps_btn, request_location=True)],
-            [KeyboardButton(manual_btn)],
-            [KeyboardButton(cancel_text)]
-        ]
-        reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
-        
-        logger.info(f"Sending city change prompt to user {user_id}")
-        await query.message.reply_text(prompt, reply_markup=reply_markup)
-        logger.info(f"City change prompt sent successfully to user {user_id}")
-        
-    except Exception as e:
-        logger.error(f"Critical error in start_change_city for user {user_id}: {e}")
-        # Try to send a simple error message
-        try:
-            await query.message.reply_text("❌ Произошла ошибка. Попробуйте позже.")
-        except:
-            pass
-        raise
+        await query.delete_message()
+    except:
+        pass
+    
+    # Send message with location request keyboard
+    keyboard = [
+        [KeyboardButton(gps_btn, request_location=True)],
+        [KeyboardButton(manual_btn)],
+        [KeyboardButton(cancel_text)]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
+    
+    await query.message.reply_text(prompt, reply_markup=reply_markup)
 
 # Placeholder functions for unimplemented features
 async def show_my_likes_direct(query, context, user_id):
     """Show likes management - incoming likes and mutual matches"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     if not user:
         return
 
@@ -4031,8 +3950,8 @@ async def show_my_likes_direct(query, context, user_id):
     mutual_matches = []
     for like_id in received_likes:
         if like_id in sent_likes and like_id not in declined_likes:
-            matched_user = db.get_user(like_id)
-            if matched_user and is_profile_complete_dict(matched_user):
+            matched_user = db.get(User.user_id == like_id)
+            if matched_user and is_profile_complete(matched_user):
                 mutual_matches.append(matched_user)
                 logger.info(f"Found mutual match with user {like_id}: {matched_user.get('name', 'Unknown')}")
 
@@ -4040,8 +3959,8 @@ async def show_my_likes_direct(query, context, user_id):
     incoming_likes = []
     for like_id in received_likes:
         if like_id not in sent_likes and like_id not in declined_likes:
-            liked_user = db.get_user(like_id)
-            if liked_user and is_profile_complete_dict(liked_user):
+            liked_user = db.get(User.user_id == like_id)
+            if liked_user and is_profile_complete(liked_user):
                 incoming_likes.append(liked_user)
                 logger.info(f"Found incoming like from user {like_id}: {liked_user.get('name', 'Unknown')}")
 
@@ -4115,7 +4034,7 @@ async def show_mutual_match_card(query, context, user_id, profile):
             traits_dict = ND_TRAITS.get('ru', ND_TRAITS['ru'])
             trait_names = [traits_dict.get(trait, trait) for trait in nd_traits if trait in traits_dict and trait != 'none']
             if trait_names:
-                profile_text += f"🧠 {get_text(user_id, 'nd_traits')}: *{', '.join(trait_names)}*\n"
+                profile_text += f"🧠 Нейроотличия: *{', '.join(trait_names)}*\n"
         
         profile_text += f"\n💭 {profile.get('bio', '')}\n"
         profile_text += f"\n✨ Свяжитесь друг с другом напрямую в Telegram!"
@@ -4189,7 +4108,7 @@ async def show_incoming_likes_browse(query, context, user_id):
 async def show_incoming_like_card(query, context, user_id, profile):
     """Show incoming like profile card with like/pass buttons"""
     try:
-        current_user = db.get_user(user_id)
+        current_user = db.get(User.user_id == user_id)
         
         profile_text = f"💕 Вам нравится!\n\n"
         profile_text += f"👤 *{profile['name']}*, {profile['age']} лет\n"
@@ -4248,10 +4167,7 @@ async def show_incoming_like_card(query, context, user_id, profile):
                 InlineKeyboardButton("❤️", callback_data=f"like_incoming_{profile['user_id']}"),
                 InlineKeyboardButton("👎", callback_data=f"pass_incoming_{profile['user_id']}")
             ],
-            [
-                create_home_button(),
-                create_report_button(profile['user_id'])
-            ]
+            [InlineKeyboardButton("🏠", callback_data="back_to_menu")]
         ]
 
         logger.info(f"Showing incoming like card for profile {profile['user_id']} to user {user_id}")
@@ -4304,7 +4220,7 @@ async def show_incoming_like_card(query, context, user_id, profile):
 
 async def show_profile_settings_menu(query, user_id):
     """Show profile settings menu"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     current_lang = user.get('lang', 'ru') if user else 'ru'
     current_city = user.get('city', 'Не указан') if user else 'Не указан'
 
@@ -4338,7 +4254,7 @@ async def show_profile_settings_menu(query, user_id):
 
 async def show_settings_menu(query, user_id):
     """Show settings menu"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     if not user:
         return
 
@@ -4390,7 +4306,7 @@ async def show_feedback_menu(query, user_id):
 
 async def show_statistics(query, user_id):
     """Show user statistics"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     if not user:
         return
 
@@ -4502,141 +4418,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(age_text, reply_markup=reply_markup)
         return AGE
 
-    # Handle Done button during photo editing
-    if context.user_data.get('changing_photo') and update.message.text:
-        text = update.message.text.strip()
-        if text in ["✅ Готово", "✅ Done", get_text(user_id, "btn_done")]:
-            # Save whatever photos we have
-            if context.user_data.get("photos"):
-                photos_list = context.user_data["photos"]
-                db.create_or_update_user(user_id, {
-                    'photos': photos_list,
-                    'photo_id': photos_list[0],
-                    'media_type': 'photo',
-                    'media_id': photos_list[0]
-                })
+    # Handle photo changes
+    if context.user_data.get('changing_photo') and update.message.photo:
+        photo = update.message.photo[-1]
+        photo_id = photo.file_id
 
-            context.user_data.pop('changing_photo', None)
-            context.user_data.pop('photos', None)
-            
-            lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
-            success_msg = "✅ Photos updated!" if lang == 'en' else "✅ Фото обновлены!"
-            await update.message.reply_text(
-                success_msg,
-                reply_markup=get_main_menu(user_id)
-            )
-            return
-    
-    # Handle photo changes for existing users
-    if context.user_data.get('changing_photo'):
-        if update.message.photo:
-            # Handle multiple photos during editing
-            if "photos" not in context.user_data:
-                context.user_data["photos"] = []
-            
-            photo = update.message.photo[-1]
-            photo_id = photo.file_id
-            photos_list = context.user_data["photos"]
-            
-            if len(photos_list) < 3:
-                photos_list.append(photo_id)
-                context.user_data["media_type"] = "photo"
-                context.user_data["media_id"] = photo_id
-                
-                photos_count = len(photos_list)
-                lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
-                
-                if photos_count < 3:
-                    keyboard = [
-                        [KeyboardButton(get_text(user_id, "btn_done"))],
-                        [KeyboardButton(get_text(user_id, "btn_skip_remaining"))],
-                        [KeyboardButton(get_text(user_id, "back_button"))]
-                    ]
-                    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
-                    
-                    if lang == 'en':
-                        photo_msg = f"✅ Photo {photos_count}/3 added!\n\nSend more photos or press 'Done':"
-                    else:
-                        photo_msg = f"✅ Фото {photos_count}/3 добавлено!\n\nОтправьте еще фото или нажмите 'Готово':"
-                    
-                    await update.message.reply_text(photo_msg, reply_markup=reply_markup)
-                    return
-                else:
-                    # Save all photos
-                    db.create_or_update_user(user_id, {
-                        'photos': photos_list,
-                        'photo_id': photos_list[0],
-                        'media_type': 'photo',
-                        'media_id': photos_list[0]
-                    })
-            else:
-                # Already have 3 photos
-                lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
-                max_msg = "⚠️ Maximum 3 photos. Press 'Done' to continue." if lang == 'en' else "⚠️ Максимум 3 фото. Нажмите 'Готово' чтобы продолжить."
-                await update.message.reply_text(max_msg)
-                return
-        
-        elif update.message.video:
-            # Handle video profile picture
-            video = update.message.video
-            db.create_or_update_user(user_id, {
-                'photos': [],
-                'photo_id': video.file_id,
-                'media_type': 'video',
-                'media_id': video.file_id
-            })
-            lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
-            success_msg = "✅ Video added!" if lang == 'en' else "✅ Видео добавлено!"
-            await update.message.reply_text(success_msg)
-        
-        elif update.message.animation:
-            # Handle GIF profile picture
-            animation = update.message.animation
-            db.create_or_update_user(user_id, {
-                'photos': [],
-                'photo_id': animation.file_id,
-                'media_type': 'animation',
-                'media_id': animation.file_id
-            })
-            lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
-            success_msg = "✅ GIF added!" if lang == 'en' else "✅ GIF добавлен!"
-            await update.message.reply_text(success_msg)
-        
-        elif update.message.video_note:
-            # Handle video note profile picture
-            video_note = update.message.video_note
-            db.create_or_update_user(user_id, {
-                'photos': [],
-                'photo_id': video_note.file_id,
-                'media_type': 'video_note',
-                'media_id': video_note.file_id
-            })
-            lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
-            success_msg = "✅ Video message added!" if lang == 'en' else "✅ Видео-сообщение добавлено!"
-            await update.message.reply_text(success_msg)
-        
-        # If we have photos or media, finalize the change
-        if context.user_data.get("photos") or update.message.photo or update.message.video or update.message.animation or update.message.video_note:
-            # Save photos if we have them
-            if context.user_data.get("photos"):
-                photos_list = context.user_data["photos"]
-                db.create_or_update_user(user_id, {
-                    'photos': photos_list,
-                    'photo_id': photos_list[0],
-                    'media_type': 'photo',
-                    'media_id': photos_list[0]
-                })
-
-            context.user_data.pop('changing_photo', None)
-            context.user_data.pop('photos', None)
-            
-            lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
-            success_msg = "✅ Photos updated!" if lang == 'en' else "✅ Фото обновлены!"
-            await update.message.reply_text(
-                success_msg,
-                reply_markup=get_main_menu(user_id)
-            )
-            return
+        # Update user's photo
+        db.update({
+            'photos': [photo_id],
+            'photo_id': photo_id,
+            'media_id': photo_id,
+            'media_type': 'photo'
+        }, Query().user_id == user_id)
 
         context.user_data.pop('changing_photo', None)
         await update.message.reply_text(
@@ -4648,11 +4441,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Handle name changes
     if context.user_data.get('changing_name') and update.message.text:
         new_name = update.message.text.strip()
-        db.create_or_update_user(user_id, {'name': new_name})
+        db.update({'name': new_name}, Query().user_id == user_id)
 
         context.user_data.pop('changing_name', None)
 
-        user = db.get_user(user_id)
+        user = db.get(Query().user_id == user_id)
         current_lang = user.get('lang', 'ru') if user else 'ru'
 
         if current_lang == 'en':
@@ -4669,7 +4462,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Handle bio changes
     if context.user_data.get('changing_bio') and update.message.text:
         new_bio = update.message.text.strip()
-        db.create_or_update_user(user_id, {'bio': new_bio})
+        db.update({'bio': new_bio}, Query().user_id == user_id)
 
         context.user_data.pop('changing_bio', None)
         await update.message.reply_text(
@@ -4680,9 +4473,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Handle city changes
     if context.user_data.get('changing_city'):
-        user = db.get_user(user_id)
+        user = db.get(Query().user_id == user_id)
         current_lang = user.get('lang', 'ru') if user else 'ru'
-        logger.info(f"🏙️ Processing city change for user {user_id}, current lang: {current_lang}")
         
         # Handle GPS location for city change
         if update.message.location:
@@ -4709,9 +4501,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 if new_city and new_city != "Unknown Location":
                     # Update city in database
-                    db.create_or_update_user(user_id, {'city': new_city, 'latitude': latitude, 'longitude': longitude})
+                    db.update({'city': new_city, 'latitude': latitude, 'longitude': longitude}, Query().user_id == user_id)
                     context.user_data.pop('changing_city', None)
-                    logger.info(f"✅ City updated to {new_city} for user {user_id} via GPS")
 
                     if current_lang == 'en':
                         success_message = f"✅ City updated to: {new_city}"
@@ -4784,9 +4575,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Handle actual city name input
             elif text not in ["📍 Поделиться GPS", "📍 Share GPS Location", "📍 Попробовать еще раз", "📍 Try GPS again", "📍 Использовать GPS", "📍 Use GPS"]:
                 new_city = normalize_city(text)
-                db.create_or_update_user(user_id, {'city': new_city})
+                db.update({'city': new_city}, Query().user_id == user_id)
                 context.user_data.pop('changing_city', None)
-                logger.info(f"✅ City updated to {new_city} for user {user_id} via manual input")
 
                 if current_lang == 'en':
                     success_message = f"✅ City updated to: {new_city}"
@@ -4799,35 +4589,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 return
 
-    # Handle custom payment amount input
-    if context.user_data.get('waiting_custom_amount') and update.message.text:
-        try:
-            amount_text = update.message.text.strip().replace('$', '').replace(',', '.')
-            amount = float(amount_text)
-            
-            if amount < 1:
-                await update.message.reply_text(
-                    get_text(user_id, "invalid_amount"),
-                    reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
-                    ]])
-                )
-                return
-            
-            # Process payment with custom amount
-            context.user_data.pop('waiting_custom_amount', None)
-            await send_payment_invoice_from_message(update, user_id, int(amount))
-            return
-            
-        except ValueError:
-            await update.message.reply_text(
-                get_text(user_id, "invalid_amount"),
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
-                ]])
-            )
-            return
-
     # Handle direct message sending (text)
     if context.user_data.get('sending_message') and update.message.text:
         target_id = context.user_data.get('message_target_id')
@@ -4835,8 +4596,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if target_id:
             try:
-                sender = db.get_user(user_id)
-                target_user = db.get_user(target_id)
+                sender = db.get(User.user_id == user_id)
+                target_user = db.get(User.user_id == target_id)
                 
                 if not sender or not target_user:
                     await update.message.reply_text("❌ Ошибка: пользователь не найден")
@@ -4894,8 +4655,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if target_id:
             try:
-                sender = db.get_user(user_id)
-                target_user = db.get_user(target_id)
+                sender = db.get(User.user_id == user_id)
+                target_user = db.get(User.user_id == target_id)
                 
                 if not sender or not target_user:
                     await update.message.reply_text("❌ Ошибка: пользователь не найден")
@@ -4977,7 +4738,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if target_id:
                 try:
                     # Send video note to target user
-                    sender = db.get_user(user_id)
+                    sender = db.get(User.user_id == user_id)
                     sender_name = sender.get('name', 'Неизвестный') if sender else 'Неизвестный'
 
                     await context.bot.send_message(
@@ -5010,7 +4771,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if target_id and message_text not in ["❌ Отмена", "❌ Cancel"]:
                 try:
-                    sender = db.get_user(user_id)
+                    sender = db.get(User.user_id == user_id)
                     sender_name = sender.get('name', 'Неизвестный') if sender else 'Неизвестный'
 
                     await context.bot.send_message(
@@ -5061,7 +4822,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Handle city change from settings
     if context.user_data.get('changing_city_setting') and update.message.text:
         new_city = normalize_city(update.message.text.strip())
-        db.create_or_update_user(user_id, {'city': new_city})
+        db.update({'city': new_city}, User.user_id == user_id)
 
         context.user_data.pop('changing_city_setting', None)
         await update.message.reply_text(
@@ -5071,7 +4832,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Check if user has profile
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     if not user:
         await update.message.reply_text(
             "👋 Привет! Отправьте /start чтобы начать знакомство!"
@@ -5119,7 +4880,7 @@ async def show_language_command(update: Update, context: ContextTypes.DEFAULT_TY
 async def show_help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /help command"""
     user_id = update.effective_user.id
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
     
     if lang == 'en':
@@ -5169,22 +4930,22 @@ Alt3r - это бот для знакомств нейроотличных лю�
 async def debug_profiles(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Debug command to check profiles in database"""
     user_id = update.effective_user.id
-    all_users = db.get_all_users()
+    all_users = db.all()
     
     debug_text = f"🔍 Debug Info:\n\n"
     debug_text += f"Total users in database: {len(all_users)}\n\n"
     
-    current_user = db.get_user(user_id)
+    current_user = db.get(User.user_id == user_id)
     if current_user:
         debug_text += f"Your profile:\n"
-        debug_text += f"- Complete: {is_profile_complete_dict(current_user)}\n"
+        debug_text += f"- Complete: {is_profile_complete(current_user)}\n"
         debug_text += f"- Gender: {current_user.get('gender', 'None')}\n"
         debug_text += f"- Interest: {current_user.get('interest', 'None')}\n"
         debug_text += f"- Sent likes: {len(current_user.get('sent_likes', []))}\n\n"
     
     complete_profiles = 0
     for user in all_users:
-        if user['user_id'] != user_id and is_profile_complete_dict(user):
+        if user['user_id'] != user_id and is_profile_complete(user):
             complete_profiles += 1
     
     debug_text += f"Other complete profiles: {complete_profiles}\n"
@@ -5195,7 +4956,7 @@ async def debug_profiles(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_nd_traits_menu(query, user_id):
     """Show neurodivergent traits management menu"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     if not user:
         return
 
@@ -5216,7 +4977,7 @@ async def show_nd_traits_menu(query, user_id):
         if symptom_names:
             text += f"Характеристики:\n• " + "\n• ".join(symptom_names[:5])
             if len(symptom_names) > 5:
-                text += f"\n• ...{get_text(user_id, 'and_more')}{len(symptom_names) - 5}"
+                text += f"\n• ... и еще {len(symptom_names) - 5}"
             text += "\n\n"
 
     text += "Что вы хотите изменить?"
@@ -5227,147 +4988,6 @@ async def show_nd_traits_menu(query, user_id):
         [InlineKeyboardButton("🔙 К настройкам", callback_data="profile_settings")]
     ]
 
-    await safe_edit_message(query, text, InlineKeyboardMarkup(keyboard))
-
-async def handle_report_user(query, context, user_id, reported_user_id):
-    """Handle user report initiation"""
-    reported_user = db.get_user(reported_user_id)
-    if not reported_user:
-        await query.answer("❌ Пользователь не найден")
-        return
-    
-    reported_name = reported_user.get('name', 'Пользователь')
-    
-    text = f"🚨 Жалоба на пользователя {reported_name}\n\n"
-    text += "Выберите причину жалобы:"
-    
-    keyboard = [
-        [InlineKeyboardButton("📢 Спам", callback_data=f"report_reason_spam_{reported_user_id}")],
-        [InlineKeyboardButton("🔞 Неподходящий контент", callback_data=f"report_reason_inappropriate_{reported_user_id}")],
-        [InlineKeyboardButton("👤 Фейковый профиль", callback_data=f"report_reason_fake_{reported_user_id}")],
-        [InlineKeyboardButton("😠 Оскорбления", callback_data=f"report_reason_harassment_{reported_user_id}")],
-        [InlineKeyboardButton("💰 Мошенничество", callback_data=f"report_reason_scam_{reported_user_id}")],
-        [InlineKeyboardButton("❌ Отмена", callback_data="browse_profiles")]
-    ]
-    
-    await safe_edit_message(query, text, InlineKeyboardMarkup(keyboard))
-
-async def submit_user_report(query, context, user_id, reported_user_id, reason):
-    """Submit user report to database"""
-    try:
-        reported_user = db.get_user(reported_user_id)
-        reporting_user = db.get_user(user_id)
-        
-        if not reported_user or not reporting_user:
-            await query.answer("❌ Ошибка: пользователь не найден")
-            return
-        
-        # Create report record
-        report_data = {
-            'reporter_id': user_id,
-            'reported_user_id': reported_user_id,
-            'reason': reason,
-            'reported_at': datetime.now().isoformat(),
-            'status': 'pending'
-        }
-        
-        # Store in database (you'll need to create a reports table)
-        # For now, let's log it and show confirmation
-        logger.info(f"📢 USER REPORT: {user_id} reported {reported_user_id} for {reason}")
-        
-        reason_text = {
-            'spam': 'Спам',
-            'inappropriate': 'Неподходящий контент',
-            'fake': 'Фейковый профиль',
-            'harassment': 'Оскорбления',
-            'scam': 'Мошенничество'
-        }.get(reason, reason)
-        
-        text = f"✅ Жалоба отправлена\n\n"
-        text += f"Причина: {reason_text}\n"
-        text += f"Пользователь: {reported_user.get('name', 'Неизвестно')}\n\n"
-        text += "Спасибо за помощь в поддержании безопасности сообщества!"
-        
-        keyboard = [
-            [InlineKeyboardButton("🔙 Продолжить просмотр", callback_data="browse_profiles")],
-            [InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu")]
-        ]
-        
-        await safe_edit_message(query, text, InlineKeyboardMarkup(keyboard))
-        
-    except Exception as e:
-        logger.error(f"Error submitting report: {e}")
-        await query.answer("❌ Ошибка при отправке жалобы")
-
-# Admin Functions
-ADMIN_USER_IDS = [410177871]  # Add admin user IDs here
-
-def is_admin(user_id):
-    """Check if user is admin"""
-    return user_id in ADMIN_USER_IDS
-
-async def admin_access_check(query, user_id):
-    """Check admin access and return False if denied"""
-    if not is_admin(user_id):
-        await query.answer("❌ Доступ запрещен")
-        return False
-    return True
-
-async def show_admin_panel(query, user_id):
-    """Show admin control panel"""
-    if not await admin_access_check(query, user_id):
-        return
-    
-    text = "🛡️ Панель администратора\n\n"
-    text += "Выберите действие:"
-    
-    keyboard = [
-        [InlineKeyboardButton("📊 Статистика", callback_data="admin_stats")],
-        [InlineKeyboardButton("🚨 Жалобы", callback_data="admin_reports")],
-        [InlineKeyboardButton("👥 Пользователи", callback_data="admin_users")],
-        [InlineKeyboardButton("📢 Рассылка", callback_data="admin_broadcast")],
-        [InlineKeyboardButton("🔙 В меню", callback_data="back_to_menu")]
-    ]
-    
-    await safe_edit_message(query, text, InlineKeyboardMarkup(keyboard))
-
-async def show_admin_reports(query, user_id):
-    """Show pending reports for admins"""
-    if not await admin_access_check(query, user_id):
-        return
-    
-    text = "🚨 Жалобы пользователей\n\n"
-    text += "📊 Статистика жалоб:\n"
-    text += "• Спам: 2 жалобы\n"
-    text += "• Неподходящий контент: 1 жалоба\n"
-    text += "• Фейковые профили: 0 жалоб\n\n"
-    text += "💡 Функция в разработке"
-    
-    keyboard = [
-        [InlineKeyboardButton("🔙 Админ-панель", callback_data="admin_panel")]
-    ]
-    
-    await safe_edit_message(query, text, InlineKeyboardMarkup(keyboard))
-
-async def show_admin_users(query, user_id):
-    """Show user management for admins"""
-    if not await admin_access_check(query, user_id):
-        return
-    
-    # Get basic stats
-    all_users = db.get_all_users()
-    total_users = len(all_users)
-    active_today = len([u for u in all_users if u.get('last_active')])
-    
-    text = f"👥 Управление пользователями\n\n"
-    text += f"📊 Всего пользователей: {total_users}\n"
-    text += f"🟢 Активных сегодня: {active_today}\n\n"
-    text += "💡 Функция управления в разработке"
-    
-    keyboard = [
-        [InlineKeyboardButton("🔙 Админ-панель", callback_data="admin_panel")]
-    ]
-    
     await safe_edit_message(query, text, InlineKeyboardMarkup(keyboard))
 
 async def toggle_registration_trait(query, context, user_id, trait_key):
@@ -5386,7 +5006,7 @@ async def toggle_registration_trait(query, context, user_id, trait_key):
     context.user_data["selected_nd_traits"] = current_traits
     
     # Update the interface immediately with new selection state
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
 
     text = "🧠 Выберите ваши нейроотличности:\n\n"
@@ -5454,7 +5074,7 @@ async def toggle_registration_symptom(query, context, user_id, symptom_key):
 
 async def show_registration_nd_symptoms(query, context, user_id):
     """Show ND symptoms selection during registration"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
 
     text = "🔍 Выберите характеристики, которые вас описывают:\n\n"
@@ -5516,7 +5136,7 @@ async def finish_nd_registration(query, context, user_id):
 
 async def toggle_nd_trait(query, user_id, trait_key):
     """Toggle ND trait selection for existing user"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     if not user:
         return
 
@@ -5531,12 +5151,12 @@ async def toggle_nd_trait(query, user_id, trait_key):
             await query.answer("❌ Можно выбрать максимум 3 особенности")
             return
 
-    db.create_or_update_user(user_id, {'nd_traits': current_traits})
+    db.update({'nd_traits': current_traits}, User.user_id == user_id)
     await show_add_traits_menu(query, user_id)
 
 async def toggle_nd_symptom(query, user_id, symptom_key):
     """Toggle ND symptom selection for existing user"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     if not user:
         return
 
@@ -5551,12 +5171,12 @@ async def toggle_nd_symptom(query, user_id, symptom_key):
             await query.answer("❌ Можно выбрать максимум 3 характеристики")
             return
 
-    db.create_or_update_user(user_id, {'nd_symptoms': current_symptoms})
+    db.update({'nd_symptoms': current_symptoms}, User.user_id == user_id)
     await show_detailed_symptoms_menu(query, user_id)
 
 async def show_add_traits_menu(query, user_id):
     """Show trait selection menu for existing user"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     if not user:
         return
 
@@ -5597,7 +5217,7 @@ async def show_add_traits_menu(query, user_id):
 
 async def show_detailed_symptoms_menu(query, user_id):
     """Show detailed symptoms menu for existing user"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     if not user:
         return
 
@@ -5652,7 +5272,7 @@ async def show_nd_search_menu(query, user_id):
 
 async def search_by_traits(query, context, user_id):
     """Search users by similar traits"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     if not user:
         return
 
@@ -5668,12 +5288,12 @@ async def search_by_traits(query, context, user_id):
         return
 
     # Find users with similar traits
-    all_users = db.get_all_users()
+    all_users = db.all()
     similar_users = []
 
     for other_user in all_users:
         if (other_user['user_id'] != user_id and 
-            is_profile_complete_dict(other_user) and
+            is_profile_complete(other_user) and
             matches_interest_criteria(user, other_user) and
             other_user['user_id'] not in user.get('sent_likes', [])):
 
@@ -5707,7 +5327,7 @@ async def show_nd_result(query, context, user_id, result_tuple):
     """Show ND search result"""
     other_user, similarity_score, common_traits = result_tuple
 
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
 
     profile_text = f"👤 *{other_user['name']}*, {other_user['age']} лет\n"
@@ -5766,7 +5386,7 @@ async def show_next_nd_result(query, context, user_id):
 
 async def compatibility_search(query, context, user_id):
     """Advanced compatibility search based on traits and symptoms"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     if not user:
         return
 
@@ -5784,12 +5404,12 @@ async def compatibility_search(query, context, user_id):
         return
 
     # Find compatible users
-    all_users = db.get_all_users()
+    all_users = db.all()
     compatible_users = []
 
     for other_user in all_users:
         if (other_user['user_id'] != user_id and 
-            is_profile_complete_dict(other_user) and
+            is_profile_complete(other_user) and
             matches_interest_criteria(user, other_user) and
             other_user['user_id'] not in user.get('sent_likes', [])):
 
@@ -5834,7 +5454,7 @@ async def compatibility_search(query, context, user_id):
 
 async def show_recommendations(query, context, user_id):
     """Show personalized recommendations based on user's profile and activity"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     if not user:
         return
 
@@ -5844,12 +5464,12 @@ async def show_recommendations(query, context, user_id):
     user_sent_likes = set(user.get('sent_likes', []))
     
     # Find recommended users
-    all_users = db.get_all_users()
+    all_users = db.all()
     recommendations = []
 
     for other_user in all_users:
         if (other_user['user_id'] != user_id and 
-            is_profile_complete_dict(other_user) and
+            is_profile_complete(other_user) and
             matches_interest_criteria(user, other_user) and
             other_user['user_id'] not in user_sent_likes):
 
@@ -5975,7 +5595,7 @@ async def show_compatibility_result(query, context, user_id, result_tuple):
     """Show compatibility search result"""
     other_user, compatibility_score, common_traits, common_symptoms = result_tuple
 
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     lang = user.get('lang', 'ru') if user else 'ru'
 
     profile_text = f"👤 *{other_user['name']}*, {other_user['age']} лет\n"
@@ -6062,7 +5682,7 @@ async def start_message_to_user(query, context, user_id, target_id):
     context.user_data['sending_message'] = True
     context.user_data['message_target_id'] = target_id
 
-    target_user = db.get_user(target_id)
+    target_user = db.get(User.user_id == target_id)
     target_name = target_user.get('name', 'Пользователь') if target_user else 'Пользователь'
 
     try:
@@ -6085,7 +5705,7 @@ async def start_video_to_user(query, context, user_id, target_id):
     context.user_data['sending_video'] = True
     context.user_data['video_target_id'] = target_id
 
-    target_user = db.get_user(target_id)
+    target_user = db.get(User.user_id == target_id)
     target_name = target_user.get('name', 'Пользователь') if target_user else 'Пользователь'
 
     try:
@@ -6186,7 +5806,7 @@ async def change_language(query, user_id):
 
 async def set_language(query, user_id, lang):
     """Set user language"""
-    db.create_or_update_user(user_id, {'lang': lang})
+    db.update({'lang': lang}, User.user_id == user_id)
 
     # Show language confirmation message in the selected language
     if lang == 'ru':
@@ -6275,7 +5895,7 @@ async def confirm_recreate_profile(query, user_id):
 
 async def confirm_reset_matches(query, user_id):
     """Confirm match reset"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     current_lang = user.get('lang', 'ru') if user else 'ru'
     
     if current_lang == 'en':
@@ -6311,16 +5931,16 @@ async def confirm_reset_matches(query, user_id):
 
 async def reset_user_matches(query, user_id):
     """Reset user's match history"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     current_lang = user.get('lang', 'ru') if user else 'ru'
     
     # Clear all match-related data
-    db.create_or_update_user(user_id, {
+    db.update({
         'sent_likes': [],
         'received_likes': [],
         'unnotified_likes': [],
         'declined_likes': []
-    })
+    }, User.user_id == user_id)
     
     if current_lang == 'en':
         success_text = "✅ Matches reset successfully!\n\nYou can now browse all profiles again and start fresh."
@@ -6381,10 +6001,10 @@ async def show_next_recommendation_result(query, context, user_id):
 
 async def continue_profile_creation(query, context, user_id):
     """Continue profile creation by guiding user to use /start"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     if not user:
         await query.edit_message_text(
-            get_text(user_id, "profile_not_found"),
+            "❌ Профиль не найден. Отправьте /start для создания профиля.",
             reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")
             ]])
@@ -6418,7 +6038,7 @@ async def continue_profile_creation(query, context, user_id):
 
 async def show_detailed_stats(query, user_id):
     """Show detailed statistics"""
-    user = db.get_user(user_id)
+    user = db.get(User.user_id == user_id)
     if not user:
         return
 
@@ -6606,7 +6226,7 @@ async def show_mutual_match_profile(query, current_user, matched_user):
 async def send_mutual_match_notification(user_id, application, matched_user):
     """Send mutual match notification with matched user's profile and revealed usernames"""
     try:
-        user = db.get_user(user_id)
+        user = db.get(Query().user_id == user_id)
         if not user:
             logger.warning(f"User {user_id} not found for mutual match notification")
             return
@@ -6686,7 +6306,7 @@ async def send_mutual_match_notification(user_id, application, matched_user):
 async def send_message_with_profile(bot, target_id, sender, message_text, is_match=False):
     """Send message with sender's profile for easy like-back"""
     try:
-        target_user = db.get_user(target_id)
+        target_user = db.get(User.user_id == target_id)
         if not target_user:
             return
 
@@ -6794,7 +6414,7 @@ async def send_message_with_profile(bot, target_id, sender, message_text, is_mat
 async def send_like_notification(user_id, application, sender_id=None):
     """Send notification about new like"""
     try:
-        user = db.get_user(user_id)
+        user = db.get(Query().user_id == user_id)
         if not user:
             logger.warning(f"User {user_id} not found for like notification")
             return
@@ -6804,7 +6424,7 @@ async def send_like_notification(user_id, application, sender_id=None):
         # Get sender info if provided
         sender_name = "Кто-то"
         if sender_id:
-            sender = db.get_user(sender_id)
+            sender = db.get(Query().user_id == sender_id)
             if sender:
                 sender_name = sender.get('name', 'Кто-то')
 
@@ -6834,8 +6454,8 @@ async def send_like_notification(user_id, application, sender_id=None):
 async def show_incoming_profile(query, user_id, target_id):
     """Show profile of someone who liked you"""
     try:
-        current_user = db.get_user(user_id)
-        target_user = db.get_user(target_id)
+        current_user = db.get(Query().user_id == user_id)
+        target_user = db.get(Query().user_id == target_id)
         
         if not current_user or not target_user:
             await safe_edit_message(
@@ -6854,7 +6474,7 @@ async def show_incoming_profile(query, user_id, target_id):
         target_username = target_user.get('username', '')
         
         # Format profile
-        profile_text = f"💕 *{target_name}* лайкнул вас!\n\n"
+        profile_text = f"💕 {target_name} лайкнул вас!\n\n"
         if target_username:
             profile_text += f"👤 *{target_name}* (@{target_username}), {target_user['age']} лет\n"
         else:
@@ -6862,26 +6482,15 @@ async def show_incoming_profile(query, user_id, target_id):
             
         profile_text += f"📍 *{target_user['city']}*\n"
         
-        # Add gender info
-        gender = target_user.get('gender', '')
-        if gender:
-            gender_text = {'male': '♂️ Мужчина', 'female': '♀️ Женщина', 'other': '⚧️ Другое'}.get(gender, gender)
-            profile_text += f"{gender_text}\n"
-        
         # Add ND traits if available
         nd_traits = target_user.get('nd_traits', [])
-        if nd_traits and nd_traits != ['none']:
+        if nd_traits:
             traits_dict = ND_TRAITS.get(lang, ND_TRAITS['ru'])
             trait_names = [traits_dict.get(trait, trait) for trait in nd_traits if trait in traits_dict and trait != 'none']
             if trait_names:
-                profile_text += f"🧠 *ND:* {', '.join(trait_names)}\n"
+                profile_text += f"🧠 ND: *{', '.join(trait_names)}*\n"
         
-        # Add bio
-        bio = target_user.get('bio', '').strip()
-        if bio:
-            profile_text += f"\n💭 _{bio}_"
-        else:
-            profile_text += f"\n💭 _Расскажу о себе позже..._"
+        profile_text += f"\n💭 {target_user['bio']}"
 
         # Simple response buttons - like back or skip
         keyboard = [
@@ -6892,15 +6501,9 @@ async def show_incoming_profile(query, user_id, target_id):
             [InlineKeyboardButton("🔙 К лайкам", callback_data="my_likes")]
         ]
 
-        # Send with media if available
+        # Send with photo if available
         photos = target_user.get('photos', [])
-        media_type = target_user.get('media_type', '')
-        media_id = target_user.get('media_id', '')
-        
-        logger.info(f"Media debug for user {target_id}: photos={len(photos) if photos else 0}, media_type='{media_type}', media_id='{media_id[:20]}...' if media_id else 'None'")
-        
-        # Try photo first, then video, then text
-        if photos and photos[0]:
+        if photos:
             try:
                 await query.message.reply_photo(
                     photo=photos[0],
@@ -6909,40 +6512,18 @@ async def show_incoming_profile(query, user_id, target_id):
                     parse_mode='Markdown'
                 )
                 await query.delete_message()
-                logger.info(f"Successfully sent incoming like photo for user {target_id}")
-            except Exception as photo_error:
-                logger.error(f"Failed to send photo for incoming profile {target_id}: {photo_error}")
+            except Exception:
                 await safe_edit_message(
                     query,
                     profile_text,
                     InlineKeyboardMarkup(keyboard)
                 )
-                logger.info(f"Successfully sent incoming like text for user {target_id}")
-        elif media_type == 'video' and media_id:
-            try:
-                await query.message.reply_video(
-                    video=media_id,
-                    caption=profile_text,
-                    reply_markup=InlineKeyboardMarkup(keyboard),
-                    parse_mode='Markdown'
-                )
-                await query.delete_message()
-                logger.info(f"Successfully sent incoming like video for user {target_id}")
-            except Exception as video_error:
-                logger.error(f"Failed to send video for incoming profile {target_id}: {video_error}")
-                await safe_edit_message(
-                    query,
-                    profile_text,
-                    InlineKeyboardMarkup(keyboard)
-                )
-                logger.info(f"Successfully sent incoming like text for user {target_id}")
         else:
             await safe_edit_message(
                 query,
                 profile_text,
                 InlineKeyboardMarkup(keyboard)
             )
-            logger.info(f"Successfully sent incoming like text for user {target_id} (no media available)")
             
     except Exception as e:
         logger.error(f"Error showing incoming profile: {e}")
@@ -6957,7 +6538,7 @@ async def show_incoming_profile(query, user_id, target_id):
 async def handle_decline_like(query, user_id, target_id):
     """Handle declining someone's like"""
     try:
-        current_user = db.get_user(user_id)
+        current_user = db.get(Query().user_id == user_id)
         if not current_user:
             return
 
@@ -6968,11 +6549,7 @@ async def handle_decline_like(query, user_id, target_id):
                 declined_likes.append(target_id)
             return {**doc, 'declined_likes': declined_likes}
         
-        # Update user with declined like
-        current_declined = current_user.get('declined_likes', [])
-        if target_id not in current_declined:
-            current_declined.append(target_id)
-            db.create_or_update_user(user_id, {'declined_likes': current_declined})
+        db.update(atomic_decline_browse_add, Query().user_id == user_id)
 
         lang = current_user.get('lang', 'ru')
         
@@ -7018,8 +6595,8 @@ async def handle_decline_like(query, user_id, target_id):
 async def handle_like_back(query, context, user_id, target_id):
     """Handle liking back someone who liked you"""
     try:
-        current_user = db.get_user(user_id)
-        target_user = db.get_user(target_id)
+        current_user = db.get(Query().user_id == user_id)
+        target_user = db.get(Query().user_id == target_id)
 
         if not current_user or not target_user:
             # Try to edit message text first, if it fails try caption, if both fail send new message
@@ -7078,15 +6655,15 @@ async def handle_like_back(query, context, user_id, target_id):
             traits_dict = ND_TRAITS.get(lang, ND_TRAITS['ru'])
             trait_names = [traits_dict.get(trait, trait) for trait in nd_traits if trait in traits_dict and trait != 'none']
             if trait_names:
-                profile_text += f"🧠 {get_text(user_id, 'nd_traits')}: *{', '.join(trait_names)}*\n"
+                profile_text += f"🧠 Нейроотличия: *{', '.join(trait_names)}*\n"
 
         if nd_symptoms:
             symptoms_dict = ND_SYMPTOMS.get(lang, ND_SYMPTOMS['ru'])
             symptom_names = [symptoms_dict.get(symptom, symptom) for symptom in nd_symptoms if symptom in symptoms_dict]
             if symptom_names:
-                profile_text += f"🔍 {get_text(user_id, 'nd_characteristics_label')}: *{', '.join(symptom_names[:3])}"
+                profile_text += f"🔍 Характеристики: *{', '.join(symptom_names[:3])}"
                 if len(symptom_names) > 3:
-                    profile_text += f"{get_text(user_id, 'and_more')}{len(symptom_names) - 3}"
+                    profile_text += f" и еще {len(symptom_names) - 3}"
                 profile_text += "*\n"
         
         profile_text += f"\n💭 {target_user.get('bio', '')}\n"
@@ -7140,13 +6717,50 @@ async def handle_like_back(query, context, user_id, target_id):
 
 
 
+async def handle_decline_like(query, user_id, target_id):
+    """Handle declining a like from someone - ATOMIC operation to prevent race conditions"""
+    try:
+        def atomic_decline_update(doc):
+            """Atomic callback to safely decline a like"""
+            declined_likes = doc.get('declined_likes', [])
+            received_likes = doc.get('received_likes', [])
+            
+            # Add to declined if not already there
+            if target_id not in declined_likes:
+                declined_likes.append(target_id)
+                
+            # Remove from received if present  
+            if target_id in received_likes:
+                received_likes.remove(target_id)
+                
+            return {
+                **doc,
+                'declined_likes': declined_likes,
+                'received_likes': received_likes
+            }
 
+        # Perform atomic update
+        updated = db.update(atomic_decline_update, Query().user_id == user_id)
+        if not updated:
+            await query.answer("❌ Ошибка")
+            return
+
+        await query.edit_message_text(
+            "👎 Пропущено",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🏠 В меню", callback_data="back_to_menu")]
+            ])
+        )
+
+    except Exception as e:
+        logger.error(f"Error in handle_decline_like: {e}")
+        await query.answer("❌ Ошибка")
 
 async def handle_like_incoming_profile(query, context, user_id, target_id):
     """Handle liking back someone from incoming likes"""
     try:
-        current_user = db.get_user(user_id)
-        target_user = db.get_user(target_id)
+        current_user = db.get(Query().user_id == user_id)
+        target_user = db.get(Query().user_id == target_id)
 
         if not current_user or not target_user:
             await safe_edit_message(
@@ -7213,12 +6827,9 @@ async def handle_pass_incoming_profile(query, context, user_id, target_id):
             return {**doc, 'declined_likes': declined_likes}
         
         # Perform atomic update
-        current_user_data = db.get_user(user_id)
-        if current_user_data:
-            declined_likes = current_user_data.get('declined_likes', [])
-            if target_id not in declined_likes:
-                declined_likes.append(target_id)
-                db.create_or_update_user(user_id, {'declined_likes': declined_likes})
+        updated = db.update(atomic_pass_update, Query().user_id == user_id)
+        if not updated:
+            return
 
         await safe_edit_message(
             query,
@@ -7261,8 +6872,8 @@ async def show_next_incoming_like(query, context, user_id):
 async def show_detailed_match_profile(query, user_id, target_id):
     """Show detailed profile of matched user with clickable Telegram username"""
     try:
-        current_user = db.get_user(user_id)
-        target_user = db.get_user(target_id)
+        current_user = db.get(Query().user_id == user_id)
+        target_user = db.get(Query().user_id == target_id)
         
         if not current_user or not target_user:
             await safe_edit_message(
@@ -7297,15 +6908,15 @@ async def show_detailed_match_profile(query, user_id, target_id):
             traits_dict = ND_TRAITS.get(lang, ND_TRAITS['ru'])
             trait_names = [traits_dict.get(trait, trait) for trait in nd_traits if trait in traits_dict and trait != 'none']
             if trait_names:
-                profile_text += f"🧠 {get_text(user_id, 'nd_traits')}: *{', '.join(trait_names)}*\n"
+                profile_text += f"🧠 Нейроотличия: *{', '.join(trait_names)}*\n"
 
         if nd_symptoms:
             symptoms_dict = ND_SYMPTOMS.get(lang, ND_SYMPTOMS['ru'])
             symptom_names = [symptoms_dict.get(symptom, symptom) for symptom in nd_symptoms if symptom in symptoms_dict]
             if symptom_names:
-                profile_text += f"🔍 {get_text(user_id, 'nd_characteristics_label')}: *{', '.join(symptom_names[:3])}"
+                profile_text += f"🔍 Характеристики: *{', '.join(symptom_names[:3])}"
                 if len(symptom_names) > 3:
-                    profile_text += f"{get_text(user_id, 'and_more')}{len(symptom_names) - 3}"
+                    profile_text += f" и еще {len(symptom_names) - 3}"
                 profile_text += "*\n"
         
         profile_text += f"\n💭 {target_user['bio']}\n"
@@ -7377,7 +6988,7 @@ async def show_detailed_match_profile(query, user_id, target_id):
 async def send_browsing_interruption(user_id, application):
     """Send special notification if user is currently browsing profiles"""
     try:
-        user = db.get_user(user_id)
+        user = db.get(User.user_id == user_id)
         if not user:
             return
 
@@ -7401,216 +7012,6 @@ async def send_browsing_interruption(user_id, application):
     except Exception as e:
         logger.error(f"Error sending browsing interruption: {e}")
 
-# ===== PAYMENT SYSTEM FUNCTIONS =====
-
-async def show_support_menu(query, user_id):
-    """Show support project menu with payment options"""
-    text = get_text(user_id, "support_title") + "\n\n"
-    text += get_text(user_id, "support_description") + "\n\n"
-    text += get_text(user_id, "support_amounts")
-    
-    keyboard = [
-        [InlineKeyboardButton(get_text(user_id, "support_5"), callback_data="support_5")],
-        [InlineKeyboardButton(get_text(user_id, "support_10"), callback_data="support_10")],
-        [InlineKeyboardButton(get_text(user_id, "support_25"), callback_data="support_25")],
-        [InlineKeyboardButton(get_text(user_id, "support_50"), callback_data="support_50")],
-        [InlineKeyboardButton(get_text(user_id, "support_custom"), callback_data="support_custom")],
-        [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
-    ]
-    
-    await query.edit_message_text(
-        text,
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
-async def start_custom_amount(query, context, user_id):
-    """Start custom amount input"""
-    context.user_data['waiting_custom_amount'] = True
-    
-    try:
-        await query.edit_message_text(
-            get_text(user_id, "custom_amount_prompt"),
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
-            ]])
-        )
-    except:
-        await query.message.reply_text(
-            get_text(user_id, "custom_amount_prompt"),
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
-            ]])
-        )
-
-async def send_payment_invoice(query, user_id, amount):
-    """Send payment invoice using Telegram Payments"""
-    try:
-        user = db.get_user(user_id)
-        lang = user.get('lang', 'ru') if user else 'ru'
-        
-        # Payment description based on amount
-        if amount == 5:
-            title = "☕ Coffee Support" if lang == 'en' else "☕ Поддержка кофе"
-            description = "Thank you for buying us coffee!" if lang == 'en' else "Спасибо за кофе!"
-        elif amount == 10:
-            title = "🍕 Pizza Fund" if lang == 'en' else "🍕 Фонд пиццы"
-            description = "Help us fuel our development!" if lang == 'en' else "Помогите нам в разработке!"
-        elif amount == 25:
-            title = "💝 Generous Support" if lang == 'en' else "💝 Щедрая поддержка"
-            description = "Your generous contribution!" if lang == 'en' else "Ваша щедрая поддержка!"
-        elif amount == 50:
-            title = "🌟 Super Supporter" if lang == 'en' else "🌟 Супер поддержка"
-            description = "Amazing support for Alt3r!" if lang == 'en' else "Потрясающая поддержка Alt3r!"
-        else:
-            title = f"💰 Custom Support - ${amount}" if lang == 'en' else f"💰 Произвольная поддержка - ${amount}"
-            description = f"Custom support amount: ${amount}" if lang == 'en' else f"Произвольная сумма поддержки: ${amount}"
-        
-        # Create price list (amount in smallest currency unit, e.g., cents for USD)
-        prices = [{"label": title, "amount": amount * 100}]  # Convert to cents
-        
-        # Note: You need to set up payment provider and get provider_token
-        # For demo purposes, I'll show the structure
-        try:
-            # This would require a real payment provider token
-            # await query.message.reply_invoice(
-            #     title=title,
-            #     description=description,
-            #     payload=f"support_{amount}_{user_id}",
-            #     provider_token="YOUR_PAYMENT_PROVIDER_TOKEN",  # You need to get this from BotFather
-            #     currency="USD",
-            #     prices=prices,
-            #     start_parameter="support_payment"
-            # )
-            
-            # For now, show a message explaining how to set up payments
-            payment_info = ""
-            if lang == 'en':
-                payment_info = f"💳 Payment Setup Required\n\n"
-                payment_info += f"To enable ${amount} payments, you need to:\n"
-                payment_info += f"1. Contact @BotFather\n"
-                payment_info += f"2. Use /mybots → Your Bot → Payments\n"
-                payment_info += f"3. Connect a payment provider (Stripe, PayPal, etc.)\n"
-                payment_info += f"4. Get the provider token\n\n"
-                payment_info += f"Once configured, users can pay directly in Telegram!"
-            else:
-                payment_info = f"💳 Требуется настройка платежей\n\n"
-                payment_info += f"Для активации платежей ${amount} нужно:\n"
-                payment_info += f"1. Написать @BotFather\n"
-                payment_info += f"2. Использовать /mybots → Ваш бот → Payments\n"
-                payment_info += f"3. Подключить платежную систему (Stripe, PayPal и др.)\n"
-                payment_info += f"4. Получить токен провайдера\n\n"
-                payment_info += f"После настройки пользователи смогут платить прямо в Telegram!"
-            
-            await query.edit_message_text(
-                payment_info,
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
-                ]])
-            )
-            
-        except Exception as payment_error:
-            logger.error(f"Payment error: {payment_error}")
-            await query.edit_message_text(
-                get_text(user_id, "payment_failed"),
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
-                ]])
-            )
-            
-    except Exception as e:
-        logger.error(f"Error sending payment invoice: {e}")
-        await query.edit_message_text(
-            get_text(user_id, "payment_failed"),
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
-            ]])
-        )
-
-async def handle_payment_success(query, user_id):
-    """Handle successful payment"""
-    await query.edit_message_text(
-        get_text(user_id, "payment_success"),
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")
-        ]])
-    )
-
-async def handle_payment_cancelled(query, user_id):
-    """Handle cancelled payment"""
-    await query.edit_message_text(
-        get_text(user_id, "payment_cancelled"),
-        reply_markup=InlineKeyboardMarkup([[
-            InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
-        ]])
-    )
-
-async def handle_pre_checkout_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle pre-checkout query"""
-    query = update.pre_checkout_query
-    # Always approve the payment (you can add validation here)
-    await query.answer(ok=True)
-
-async def handle_successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle successful payment"""
-    payment = update.message.successful_payment
-    user_id = update.message.from_user.id
-    
-    # Extract amount from payload or payment info
-    amount = payment.total_amount // 100  # Convert from cents to dollars
-    
-    # Log the successful payment
-    logger.info(f"Payment successful: user {user_id}, amount ${amount}")
-    
-    # Send thank you message
-    await update.message.reply_text(
-        get_text(user_id, "payment_success"),
-        reply_markup=get_main_menu(user_id)
-    )
-
-async def send_payment_invoice_from_message(update, user_id, amount):
-    """Send payment invoice from message context"""
-    try:
-        user = db.get_user(user_id)
-        lang = user.get('lang', 'ru') if user else 'ru'
-        
-        title = f"💰 Custom Support - ${amount}" if lang == 'en' else f"💰 Произвольная поддержка - ${amount}"
-        description = f"Custom support amount: ${amount}" if lang == 'en' else f"Произвольная сумма поддержки: ${amount}"
-        
-        # Show payment setup info (same as in send_payment_invoice but for message context)
-        payment_info = ""
-        if lang == 'en':
-            payment_info = f"💳 Payment Setup Required\n\n"
-            payment_info += f"To enable ${amount} payments, you need to:\n"
-            payment_info += f"1. Contact @BotFather\n"
-            payment_info += f"2. Use /mybots → Your Bot → Payments\n"
-            payment_info += f"3. Connect a payment provider (Stripe, PayPal, etc.)\n"
-            payment_info += f"4. Get the provider token\n\n"
-            payment_info += f"Once configured, users can pay directly in Telegram!"
-        else:
-            payment_info = f"💳 Требуется настройка платежей\n\n"
-            payment_info += f"Для активации платежей ${amount} нужно:\n"
-            payment_info += f"1. Написать @BotFather\n"
-            payment_info += f"2. Использовать /mybots → Ваш бот → Payments\n"
-            payment_info += f"3. Подключить платежную систему (Stripe, PayPal и др.)\n"
-            payment_info += f"4. Получить токен провайдера\n\n"
-            payment_info += f"После настройки пользователи смогут платить прямо в Telegram!"
-        
-        await update.message.reply_text(
-            payment_info,
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
-            ]])
-        )
-        
-    except Exception as e:
-        logger.error(f"Error sending payment invoice from message: {e}")
-        await update.message.reply_text(
-            get_text(user_id, "payment_failed"),
-            reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
-            ]])
-        )
-
 def main():
     """Main function to run the bot"""
     from telegram.request import HTTPXRequest
@@ -7619,13 +7020,64 @@ def main():
     import signal
     import sys
     
-    # Setup robust process management
-    if not process_manager.acquire_lock():
-        logger.error("Could not acquire process lock - another instance may be running")
-        sys.exit(1)
+    # Signal handler for graceful shutdown
+    def signal_handler(sig, frame):
+        logger.info("Received shutdown signal, stopping bot...")
+        if lock_file:
+            try:
+                lock_file.close()
+                if os.path.exists(lock_file_path):
+                    os.remove(lock_file_path)
+                logger.info("Lock file cleaned up")
+            except:
+                pass
+        sys.exit(0)
     
-    # Setup signal handlers for clean shutdown
-    process_manager.setup_signal_handlers()
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    # Create process lock to prevent multiple instances
+    lock_file = None
+    lock_file_path = '/tmp/alt3r_bot.lock'
+    
+    try:
+        # Force cleanup of any existing lock file first
+        if os.path.exists(lock_file_path):
+            logger.info("Found existing lock file, removing it...")
+            try:
+                os.remove(lock_file_path)
+            except OSError as e:
+                logger.warning(f"Could not remove existing lock file: {e}")
+        
+        # Create new lock file
+        lock_file = open(lock_file_path, 'w')
+        try:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (IOError, OSError):
+            logger.error("Could not acquire file lock - another instance might be running")
+            lock_file.close()
+            sys.exit(1)
+            
+        lock_file.write(str(os.getpid()))
+        lock_file.flush()
+        
+        def cleanup_lock():
+            if lock_file:
+                try:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)  # Explicitly unlock
+                    lock_file.close()
+                    if os.path.exists(lock_file_path):
+                        os.remove(lock_file_path)
+                    logger.info("Lock file cleaned up successfully")
+                except Exception as e:
+                    logger.warning(f"Error cleaning up lock file: {e}")
+        
+        atexit.register(cleanup_lock)
+        logger.info("Process lock acquired successfully")
+        
+    except (IOError, OSError) as e:
+        logger.error(f"Cannot acquire lock: {e}")
+        sys.exit(1)
     
     # Configure request with better timeout and retry settings
     request = HTTPXRequest(
@@ -7641,9 +7093,9 @@ def main():
     # Set bot commands
     async def post_init(application):
         commands = [
-            BotCommand("start", "🔄 Перезапустить бота / Restart the bot"),
-            BotCommand("language", "🌐 Изменить язык / Change Language"),
-            BotCommand("help", "❓ Помощь / Help")
+            BotCommand("start", "Главное меню"),
+            BotCommand("language", "Изменить язык"),
+            BotCommand("help", "Помощь")
         ]
         await application.bot.set_my_commands(commands)
     
@@ -7653,37 +7105,19 @@ def main():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            AGE: [
-                CallbackQueryHandler(handle_callback),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_age)
-            ],
-            GENDER: [
-                CallbackQueryHandler(handle_callback),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_gender)
-            ],
-            INTEREST: [
-                CallbackQueryHandler(handle_callback),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_interest)
-            ],
+            AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_age)],
+            GENDER: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_gender)],
+            INTEREST: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_interest)],
             CITY: [
-                CallbackQueryHandler(handle_callback),
                 MessageHandler(filters.LOCATION, handle_city),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_city)
             ],
-            NAME: [
-                CallbackQueryHandler(handle_callback),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name)
-            ],
-            BIO: [
-                CallbackQueryHandler(handle_callback),
-                MessageHandler(filters.TEXT & ~filters.COMMAND, handle_bio)
-            ],
+            NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_name)],
+            BIO: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_bio)],
             PHOTO: [
-                CallbackQueryHandler(handle_callback),
                 MessageHandler(filters.PHOTO, handle_photo),
                 MessageHandler(filters.VIDEO, handle_photo),
                 MessageHandler(filters.VIDEO_NOTE, handle_photo),
-                MessageHandler(filters.ANIMATION, handle_photo),
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_photo)
             ],
             WAITING_NAME: [
@@ -7702,12 +7136,6 @@ def main():
     application.add_handler(CommandHandler("language", show_language_command))
     application.add_handler(CommandHandler("help", show_help_command))
     application.add_handler(CommandHandler("debug", debug_profiles))
-    
-    # Add payment handlers
-    from telegram.ext import PreCheckoutQueryHandler
-    application.add_handler(PreCheckoutQueryHandler(handle_pre_checkout_query))
-    application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, handle_successful_payment))
-    
     application.add_handler(CallbackQueryHandler(handle_callback))
     application.add_handler(MessageHandler(filters.ALL, handle_message))
 
@@ -7738,7 +7166,14 @@ def main():
                 time.sleep(5)
             else:
                 logger.error("Max retries reached. Another bot instance may be running.")
-                process_manager.release_lock()
+                # Clean up lock file before exiting
+                if lock_file:
+                    try:
+                        lock_file.close()
+                        if os.path.exists(lock_file_path):
+                            os.remove(lock_file_path)
+                    except:
+                        pass
                 sys.exit(1)
         except KeyboardInterrupt:
             logger.info("Bot stopped by user")
@@ -7747,12 +7182,25 @@ def main():
             logger.error(f"Bot crashed with unexpected error: {e}")
             import traceback
             traceback.print_exc()
-            process_manager.release_lock()
+            # Clean up lock file before exiting
+            if lock_file:
+                try:
+                    lock_file.close()
+                    if os.path.exists(lock_file_path):
+                        os.remove(lock_file_path)
+                except:
+                    pass
             sys.exit(1)
     
     # Final cleanup
-    process_manager.release_lock()
-    logger.info("Bot shutdown complete")
+    if lock_file:
+        try:
+            lock_file.close()
+            if os.path.exists(lock_file_path):
+                os.remove(lock_file_path)
+            logger.info("Bot shutdown complete")
+        except:
+            pass
 
 if __name__ == "__main__":
     main()
