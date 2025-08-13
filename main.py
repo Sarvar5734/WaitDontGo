@@ -1588,15 +1588,15 @@ def matches_interest_criteria(user1: dict, user2: dict) -> bool:
     user1_gender = user1.get("gender", "")
     user2_gender = user2.get("gender", "")
 
-    # Check if user1 is interested in user2's gender
-    user1_interested = (user1_interest == "both" or 
-                       (user1_interest == "female" and user2_gender == "female") or
-                       (user1_interest == "male" and user2_gender == "male"))
+    # Check if user1 is interested in user2's gender (support both Russian and English)
+    user1_interested = (user1_interest in ["both", "Все равно"] or 
+                       (user1_interest in ["female", "Ж"] and user2_gender in ["female", "Ж"]) or
+                       (user1_interest in ["male", "М"] and user2_gender in ["male", "М"]))
 
-    # Check if user2 is interested in user1's gender  
-    user2_interested = (user2_interest == "both" or
-                       (user2_interest == "female" and user1_gender == "female") or
-                       (user2_interest == "male" and user1_gender == "male"))
+    # Check if user2 is interested in user1's gender (support both Russian and English)
+    user2_interested = (user2_interest in ["both", "Все равно"] or
+                       (user2_interest in ["female", "Ж"] and user1_gender in ["female", "Ж"]) or
+                       (user2_interest in ["male", "М"] and user1_gender in ["male", "М"]))
 
     return user1_interested and user2_interested
 
