@@ -96,6 +96,50 @@ TEXTS = {
         "about_me": "About me:",
         "send_message": "💌 Send Message",
         
+        # === NAVIGATION & UI ===
+        "back_button": "🔙 Back",
+        "back_to_main_menu": "🏠 Back to Main Menu",
+        "language_menu": "🌐 Language",
+        "change_language_btn": "🌐 Change Language",
+        "btn_done": "✅ Done",
+        "btn_save": "💾 Save",
+        "btn_skip_all": "⏭️ Skip All",
+        "btn_skip_remaining": "⏭️ Skip Remaining",
+        "manual_entry": "✍️ Enter Manually",
+        
+        # === PROFILE MANAGEMENT ===
+        "change_bio": "✍️ Change Bio",
+        "change_city": "📍 Change City", 
+        "change_name": "👤 Change Name",
+        "change_photo": "📸 Change Photo",
+        "new_bio_prompt": "✍️ Enter your new bio:",
+        "new_photo_prompt": "📸 Upload your new photo:",
+        "media_send_prompt": "📸 Please send a photo or video",
+        "photo_required": "📸 Photo is required to continue",
+        "default_bio_skip": "No bio provided",
+        "recreate_profile": "🔄 Recreate Profile",
+        "delete_account": "🗑️ Delete Account",
+        "reset_matches": "🔄 Reset Matches",
+        
+        # === NEURODIVERGENT FEATURES ===
+        "my_characteristics": "🧠 My Characteristics",
+        "nd_selection_prompt": "🧠 Select your neurodivergent traits (optional):",
+        "selecting_traits": "🧠 Selecting traits...",
+        
+        # === LOCATION ===
+        "share_gps": "📍 Share GPS Location",
+        "share_location": "📍 Share Location",
+        "enter_city_manual": "✍️ Enter City Name",
+        "gps_error": "❌ Could not get GPS location",
+        
+        # === ERROR MESSAGES ===
+        "error_occurred": "❌ An error occurred. Please try again.",
+        "age_prompt_error": "❌ Please enter a valid age",
+        "age_range_error": "❌ Age must be between 18 and 100",
+        "gender_selection_error": "❌ Please select a valid gender option",
+        "interest_selection_error": "❌ Please select who you're interested in",
+        "profile_passed": "⏭️ Profile skipped",
+        
         # === MISSING TRANSLATION FALLBACKS ===
         "missing_translation": "❌ Missing translation",
         "fallback_text": "Text not available",
@@ -178,6 +222,54 @@ TEXTS = {
         "city": "Город:",
         "about_me": "Обо мне:",
         "send_message": "💌 Написать сообщение",
+        
+        # === NAVIGATION & UI ===
+        "back_button": "🔙 Назад",
+        "back_to_main_menu": "🏠 В главное меню",
+        "language_menu": "🌐 Язык",
+        "change_language_btn": "🌐 Сменить язык",
+        "btn_done": "✅ Готово",
+        "btn_save": "💾 Сохранить",
+        "btn_skip_all": "⏭️ Пропустить всё",
+        "btn_skip_remaining": "⏭️ Пропустить остальное",
+        "manual_entry": "✍️ Ввести вручную",
+        
+        # === PROFILE MANAGEMENT ===
+        "change_bio": "✍️ Изменить описание",
+        "change_city": "📍 Изменить город",
+        "change_name": "👤 Изменить имя",
+        "change_photo": "📸 Изменить фото",
+        "new_bio_prompt": "✍️ Введите новое описание:",
+        "new_photo_prompt": "📸 Загрузите новое фото:",
+        "media_send_prompt": "📸 Пожалуйста, отправьте фото или видео",
+        "photo_required": "📸 Фото обязательно для продолжения",
+        "default_bio_skip": "Описание не указано",
+        "recreate_profile": "🔄 Пересоздать профиль",
+        "delete_account": "🗑️ Удалить аккаунт",
+        "reset_matches": "🔄 Сбросить совпадения",
+        
+        # === NEURODIVERGENT FEATURES ===
+        "my_characteristics": "🧠 Мои особенности",
+        "nd_selection_prompt": "🧠 Выберите ваши нейроотличия (необязательно):",
+        "selecting_traits": "🧠 Выбираю особенности...",
+        
+        # === LOCATION ===
+        "share_gps": "📍 Поделиться GPS",
+        "share_location": "📍 Поделиться локацией",
+        "enter_city_manual": "✍️ Ввести название города",
+        "gps_error": "❌ Не удалось получить GPS координаты",
+        
+        # === ERROR MESSAGES ===
+        "error_occurred": "❌ Произошла ошибка. Попробуйте еще раз.",
+        "age_prompt_error": "❌ Пожалуйста, введите корректный возраст",
+        "age_range_error": "❌ Возраст должен быть от 18 до 100 лет",
+        "gender_selection_error": "❌ Пожалуйста, выберите корректный пол",
+        "interest_selection_error": "❌ Пожалуйста, выберите кто вас интересует",
+        "profile_passed": "⏭️ Профиль пропущен",
+        
+        # === MISSING TRANSLATION FALLBACKS ===
+        "missing_translation": "❌ Отсутствует перевод",
+        "fallback_text": "Текст недоступен",
     }
 }
 
