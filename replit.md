@@ -10,14 +10,6 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (August 2025)
 
-**Coordinate System Enhancement (Perfect CIS Support):**
-- Implemented comprehensive GPS coordinate database for 49+ major CIS cities
-- Added perfect coordinate resolution with 100% success rate for major cities
-- Enhanced matching algorithm with city-to-coordinate conversion for accurate distance calculations
-- Integrated smart abbreviation support (мск→Москва, СПб→Санкт-Петербург, екб→Екатеринбург)
-- Achieved 80% distance accuracy verification for location-based matching
-- Added fallback system: GPS coordinates → city coordinates → text matching
-
 **Navigation System Improvements:**
 - Added comprehensive debugging for profile navigation buttons
 - Fixed compatibility issues in profile browsing with proper gender/interest matching
@@ -28,12 +20,6 @@ Preferred communication style: Simple, everyday language.
 - Implemented video display support for incoming like profiles
 - Added media fallback logic: photos → videos → text-only display
 - Enhanced media debugging to track photo vs video content properly
-
-**Complete Translation System:**
-- Enhanced English translation coverage to 95 main text translations
-- Achieved 100% bilingual synchronization between English and Russian
-- Added comprehensive translations for navigation, profile management, neurodivergent features, and error messages
-- Ensured zero mixed-language interfaces for seamless user experience
 
 **Process Management:**
 - Integrated robust process manager with automatic cleanup and conflict prevention
