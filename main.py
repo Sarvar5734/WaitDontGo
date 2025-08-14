@@ -27,7 +27,8 @@ from telegram.ext import (
 from dotenv import load_dotenv
 from keep_alive import start_keep_alive
 from database_manager import db_manager
-# UserModel import kept for type hints in is_profile_complete function
+# User model import for type hints in is_profile_complete function
+from models import User
 from db_operations import db
 from process_manager import process_manager
 
@@ -1319,7 +1320,7 @@ async def get_city_from_coordinates(latitude: float, longitude: float) -> str:
         logger.error(f"Error in reverse geocoding: {e}")
         return "Unknown Location"
 
-def is_profile_complete(user: UserModel) -> bool:
+def is_profile_complete(user: User) -> bool:
     """Check if user profile is complete"""
     if not user:
         return False

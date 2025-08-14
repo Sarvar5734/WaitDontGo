@@ -305,7 +305,7 @@ def add_translation(language: str, key: str, text: str) -> bool:
     except Exception:
         return False
 
-def get_translation_coverage(language: str) -> Dict[str, int]:
+def get_translation_coverage(language: str) -> Dict[str, Any]:
     """
     Get translation coverage statistics for a language.
     
