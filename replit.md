@@ -10,11 +10,24 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (August 2025)
 
+**Critical Bug Fixes & Launch Preparation:**
+- Fixed feedback_db crashes by migrating to PostgreSQL (db_manager.add_feedback)
+- Eliminated double menu sends in main message handler
+- Cleaned up unused imports (fcntl, atexit) - now using process_manager
+- Streamlined atomic update logic in add_like function
+- Fixed report button UI split (🏠 Home + 🚨 Report buttons)
+
 **Navigation System Improvements:**
 - Added comprehensive debugging for profile navigation buttons
 - Fixed compatibility issues in profile browsing with proper gender/interest matching
 - Enhanced navigation with detailed logging for back/forth button functionality
 - Verified navigation works correctly with multiple profiles (3+ users)
+
+**Admin Tools Implementation:**
+- Added admin panel functionality with user reporting system
+- Implemented user report system with multiple categories (spam, harassment, fake profiles)
+- Admin access restricted to authorized user IDs with full management interface
+- Report logging integrated with PostgreSQL backend
 
 **Video Support Enhancement:**
 - Implemented video display support for incoming like profiles

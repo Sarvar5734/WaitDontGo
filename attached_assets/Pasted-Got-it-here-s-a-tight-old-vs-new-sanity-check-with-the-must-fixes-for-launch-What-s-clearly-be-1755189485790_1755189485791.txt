@@ -1,0 +1,62 @@
+Got it — here’s a tight “old vs new” sanity check with the must-fixes for launch.
+
+What’s clearly better in main (51).py
+
+DB migration: you’ve switched from TinyDB to a Postgres-backed layer (db_operations.db) and explicitly dropped TinyDB. Nice. 
+
+Process management: lock/cleanup moved into a dedicated process_manager (acquire + signal handlers + release) instead of hand-rolled fcntl/lockfile logic from the old version. Much safer.
+
+Conversation wiring: states now accept callbacks in every step (buttons work even mid-flow). 
+
+Payments scaffold: you added PreCheckoutQueryHandler and SUCCESSFUL_PAYMENT handling + a support menu.
+
+Admin panel hooks: is_admin + admin views (stats/reports/users) exist and you gate them. 
+
+Menu polish: create_smart_text trims long labels and you expose an admin button for admins. 
+
+Matching/reco: compatibility & recommendations flows are more structured and cached.
+
+Must-fix before launch (blockers)
+
+feedback_db is used but never defined (TinyDB was removed). Any rating action will crash with NameError. Either remove TinyDB usage here or persist to Postgres.
+Quick fix idea: replace the insert with a Postgres call, e.g. db.save_feedback({...}), or temporarily no-op/log until your feedback table is ready. 
+
+Duplicate function blocks — e.g. start_feedback, show_rating_menu, save_app_rating, change_language, set_language appear twice. This invites drift and confusion. Consolidate to one copy.
+
+Text catalog inconsistencies/duplication:
+
+English error strings leak into the Russian section (e.g., gender_selection_error in RU). 
+
+Many keys are repeated across the same locale blocks (e.g., detailed_stats, app_stats, etc.). Unify each key once per locale.
+
+Double menu send on message entry: in the generic message handler you send “main menu” twice back-to-back; users will see two messages. Keep only one. 
+
+Should-fix soon (non-blocking, polish/maintainability)
+
+Unused imports: you still import fcntl/atexit in the new file but locking is handled by process_manager. Drop them. 
+
+Leftover nested “atomic” helpers in add_like: you define callback-style updaters then proceed with manual gets/sets; choose one approach to avoid confusion. 
+
+Possibly unused imports/types: database_manager.db_manager and UserModel aren’t referenced in this file — either use them or remove. 
+
+Neutral changes (good to be aware of)
+
+State map differences: compared to the old version, you now include CallbackQueryHandler(handle_callback) in most states and added support for animations/video in the PHOTO state — improves UX.
+
+Ratings system: ported to Postgres accessor functions (db.get_all_users, db.create_or_update_user). Looks consistent. 
+
+Concrete patch checklist
+
+Replace feedback_db.insert(...) with a Postgres call or remove until ready. (Search for save_app_rating — two copies.)
+
+Delete the duplicate feedback/language function block; keep a single authoritative version. 
+
+Normalize TEXTS: one key per locale; no cross-locale English lines in RU. Start with the gender_selection_error leak and repeated stats keys.
+
+In handle_message, keep only one “main menu” reply. 
+
+Remove fcntl/atexit imports and any other unused imports. 
+
+Trim the “atomic update” scaffolding in add_like or implement it properly via your DB layer. 
+
+If you want, I can also generate a tiny diff patch for the blockers and a one-file grep list of duplicate keys to merge.

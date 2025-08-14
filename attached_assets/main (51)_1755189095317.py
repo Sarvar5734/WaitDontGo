@@ -13,7 +13,8 @@ import aiohttp
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 import re
-# Removed unused imports - using process_manager now
+import fcntl
+import atexit
 
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup, 
@@ -27,7 +28,7 @@ from telegram.ext import (
 from dotenv import load_dotenv
 from keep_alive import start_keep_alive
 from database_manager import db_manager
-# UserModel import kept for type hints in is_profile_complete function
+from models import User as UserModel
 from db_operations import db
 from process_manager import process_manager
 
@@ -1479,7 +1480,40 @@ def get_user_rating(user_id):
 async def add_like(from_user_id, to_user_id):
     """Add a like from one user to another - ATOMIC operation to prevent race conditions"""
     try:
-        # PostgreSQL atomic updates - using direct database calls
+        # ATOMIC UPDATE: Use db.update with callback to prevent race conditions
+        def update_target_likes(doc):
+            """Atomic callback to safely update target user's likes"""
+            received_likes = doc.get('received_likes', [])
+            unnotified_likes = doc.get('unnotified_likes', [])
+            
+            # Only add if not already present (idempotent operation)
+            if from_user_id not in received_likes:
+                received_likes.append(from_user_id)
+                unnotified_likes.append(from_user_id)
+                logger.info(f"✅ Added like from {from_user_id} to {to_user_id}")
+                return {
+                    **doc,
+                    'received_likes': received_likes,
+                    'unnotified_likes': unnotified_likes
+                }
+            else:
+                logger.info(f"⚠️ Like from {from_user_id} to {to_user_id} already exists")
+                return doc
+
+        def update_sender_likes(doc):
+            """Atomic callback to safely update sender's likes"""
+            sent_likes = doc.get('sent_likes', [])
+            
+            # Only add if not already present (idempotent operation)
+            if to_user_id not in sent_likes:
+                sent_likes.append(to_user_id)
+                logger.info(f"✅ Updated sent likes for user {from_user_id}")
+                return {**doc, 'sent_likes': sent_likes}
+            else:
+                logger.info(f"⚠️ Sent like from {from_user_id} to {to_user_id} already exists")
+                return doc
+
+        # PostgreSQL atomic updates
         try:
             # Update target user's received likes
             target_user = db.get_user(to_user_id)
@@ -5003,8 +5037,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'timestamp': datetime.now().isoformat()
         }
 
-        # Save to PostgreSQL via db_manager
-        db_manager.add_feedback(user_id, f"[{feedback_type}] {feedback_text}")
+        feedback_db.insert(feedback_data)
 
         context.user_data.pop('waiting_feedback', None)
         context.user_data.pop('feedback_type', None)
@@ -5036,7 +5069,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Always show main menu for existing users, regardless of profile completion
-    # Remove any reply keyboard and show main menu (single message)
+    # Remove any reply keyboard and show main menu
+    await update.message.reply_text(
+        get_text(user_id, "main_menu"),
+        reply_markup=ReplyKeyboardRemove()
+    )
     await update.message.reply_text(
         get_text(user_id, "main_menu"),
         reply_markup=get_main_menu(user_id)
@@ -6098,8 +6135,18 @@ async def show_rating_menu(query, user_id):
 
 async def save_app_rating(query, user_id, rating):
     """Save app rating"""
-    # Save rating to PostgreSQL database
-    db_manager.add_feedback(user_id, f"Оценка приложения: {rating}/5 звезд")
+    # Save rating to feedback database
+    feedback_data = {
+        'user_id': user_id,
+        'username': query.from_user.username or '',
+        'first_name': query.from_user.first_name or '',
+        'type': 'rating',
+        'text': f"Оценка: {rating}/5",
+        'rating': rating,
+        'timestamp': datetime.now().isoformat()
+    }
+
+    feedback_db.insert(feedback_data)
 
     await query.edit_message_text(
         f"✅ Спасибо за оценку! Вы поставили {rating}/5 звезд",
