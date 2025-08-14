@@ -1,0 +1,270 @@
+Goal:
+Make city handling consistent across languages and inputs. Every profile must store:
+
+city (display),
+
+city_slug (ASCII/English key),
+
+latitude, longitude (always present, even for manual city text).
+Matching must use coords first, then fallbacks, and include nearby users.
+
+1) Add forward geocoding for manual city input
+
+File: main (51).py (or your main bot file)
+Where: the handler that processes typed city names during onboarding/settings.
+
+After you normalize the typed city string, forward-geocode it and store lat/lon:
+
+async def get_coordinates_from_city(city: str):
+    import aiohttp, asyncio
+
+    urls = [
+        f"https://nominatim.openstreetmap.org/search?q={city}&format=json&limit=1",
+    ]
+    headers = {"User-Agent": "Alt3r Dating Bot / CityGeocode"}
+
+    for url in urls:
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as s:
+                async with s.get(url, headers=headers) as r:
+                    if r.status == 200:
+                        data = await r.json()
+                        if isinstance(data, list) and data:
+                            return float(data[0]["lat"]), float(data[0]["lon"])
+        except Exception:
+            pass
+    return None
+
+
+In the manual city branch:
+
+display_city = normalize_city(update.message.text)  # keep your existing normalize
+coords = await get_coordinates_from_city(display_city)
+
+if coords:
+    lat, lon = coords
+else:
+    # fallback to local map (added in §2)
+    latlon = get_city_coordinates(display_city)
+    if latlon:
+        lat, lon = latlon
+    else:
+        # last-resort: set to None; we’ll still set slug below
+        lat = lon = None
+
+slug = city_slug(display_city)  # added in §3
+
+# write into user_data AND persist:
+context.user_data.update({
+    "city": display_city,
+    "city_slug": slug,
+    "latitude": lat,
+    "longitude": lon,
+})
+db.create_or_update_user(user_id, {
+    "city": display_city,
+    "city_slug": slug,
+    "latitude": lat,
+    "longitude": lon,
+})
+
+2) Restore / add city→coords fallback map
+
+If the previous version (main (50).py) had get_city_coordinates(), port it. If not, create a minimal version now and expand over time:
+
+def get_city_coordinates(city: str):
+    c = normalize_city(city).lower()
+    table = {
+        # Russia
+        "москва": (55.7558, 37.6176), "moscow": (55.7558, 37.6176),
+        "санкт-петербург": (59.9343, 30.3351), "saint petersburg": (59.9343, 30.3351),
+        # Poland
+        "warszawa": (52.2297, 21.0122), "warsaw": (52.2297, 21.0122),
+        "kraków": (50.0647, 19.9450), "krakow": (50.0647, 19.9450),
+        "wrocław": (51.1079, 17.0385), "wroclaw": (51.1079, 17.0385),
+        "gdańsk": (54.3520, 18.6466), "gdansk": (54.3520, 18.6466),
+        "poznań": (52.4064, 16.9252), "poznan": (52.4064, 16.9252),
+        "łódź": (51.7592, 19.4550), "lodz": (51.7592, 19.4550),
+        # Ukraine
+        "київ": (50.4501, 30.5234), "kyiv": (50.4501, 30.5234), "kiev": (50.4501, 30.5234),
+        # Add more majors as needed.
+    }
+    return table.get(c)
+
+
+Keep this as a fallback only; primary source is the geocoder in §1.
+
+3) Create a canonical city_slug() for comparisons
+
+We keep the user’s pretty city for UI, but comparisons use a slug so “Москва” == “Moscow”.
+
+import unicodedata
+
+def strip_diacritics(s: str) -> str:
+    return "".join(ch for ch in unicodedata.normalize("NFKD", s) if not unicodedata.combining(ch))
+
+def city_slug(city: str) -> str:
+    norm = normalize_city(city).lower().strip()
+    # Known aliases (expand gradually)
+    aliases = {
+        "москва": "moscow",
+        "санкт-петербург": "saint petersburg",
+        "питер": "saint petersburg",
+        "warszawa": "warsaw", "kraków": "krakow", "wrocław": "wroclaw", "gdańsk": "gdansk", "poznań": "poznan", "łódź": "lodz",
+        "київ": "kyiv", "киев": "kyiv",
+    }
+    slug = aliases.get(norm, norm)
+    slug = strip_diacritics(slug)
+    # basic ascii-ization
+    slug = slug.replace(" ", "-")
+    return slug
+
+4) Ensure persistence always saves city, slug, and coords
+
+Confirm the final profile save path (onboarding completion & city-change settings) writes all four fields (city, city_slug, latitude, longitude) exactly like in §1.
+
+5) Make matching use coords → fallback to map → slug/region
+
+Ensure you have a Haversine distance:
+
+import math
+def calculate_distance_km(lat1, lon1, lat2, lon2):
+    R = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlmb = math.radians(lon2 - lon1)
+    a = math.sin(dphi/2)**2 + math.cos(p1)*math.cos(p2)*math.sin(dlmb/2)**2
+    return 2 * R * math.asin(math.sqrt(a))
+
+
+In your location priority / filtering logic:
+
+If both users have coords → use calculate_distance_km.
+
+Else → look up coords via get_city_coordinates() for any missing side and then compute distance.
+
+Else → compare city_slug equality.
+
+Else → region proximity.
+
+Update region lists to use slugs:
+
+def get_regional_proximity(city1: str, city2: str) -> bool:
+    c1, c2 = city_slug(city1), city_slug(city2)
+    regions = {
+        "russia": {"moscow","saint-petersburg","kazan","yekaterinburg","novosibirsk","nizhny-novgorod","samara","ufa"},
+        "poland": {"warsaw","krakow","wroclaw","gdansk","poznan","lodz","katowice","szczecin","bialystok","lublin"},
+        "ukraine": {"kyiv","lviv","kharkiv","odesa","dnipro"},
+    }
+    return any(c1 in s and c2 in s for s in regions.values())
+
+6) Include “nearby city” logic so close users still match
+
+In your feed/filter:
+
+Treat users within 25 km (editable) as “same area”, even if their city texts differ.
+
+Example:
+
+NEARBY_KM = 25
+
+def is_nearby(user_a, user_b):
+    a_lat, a_lon = user_a.get("latitude"), user_a.get("longitude")
+    b_lat, b_lon = user_b.get("latitude"), user_b.get("longitude")
+    if a_lat is not None and a_lon is not None and b_lat is not None and b_lon is not None:
+        return calculate_distance_km(a_lat, a_lon, b_lat, b_lon) <= NEARBY_KM
+    # try fallbacks
+    ca = get_city_coordinates(user_a.get("city","") or user_a.get("city_slug",""))
+    cb = get_city_coordinates(user_b.get("city","") or user_b.get("city_slug",""))
+    if ca and cb:
+        return calculate_distance_km(ca[0], ca[1], cb[0], cb[1]) <= NEARBY_KM
+    # last fallback: slug equal or regional proximity
+    return (user_a.get("city_slug") == user_b.get("city_slug")) or get_regional_proximity(
+        user_a.get("city",""), user_b.get("city","")
+    )
+
+
+Use is_nearby() in your candidate selection and sorting.
+
+7) DB migration & indexes (Postgres)
+
+Create missing columns and indexes so lookups are fast:
+
+-- Add columns if missing
+ALTER TABLE users ADD COLUMN IF NOT EXISTS city TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS city_slug TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+
+-- Helpful indexes
+CREATE INDEX IF NOT EXISTS idx_users_city_slug ON users (city_slug);
+CREATE INDEX IF NOT EXISTS idx_users_coords ON users (latitude, longitude);
+
+8) One-off backfill command for existing users
+
+Add an admin-only command /migrate_cities that:
+
+Scans all users.
+
+If latitude/longitude missing and city present → call get_coordinates_from_city(city); if fails, use get_city_coordinates(city).
+
+Set city_slug = city_slug(city) if missing.
+
+Log how many were updated.
+
+Pseudocode handler:
+
+@admin_only
+async def migrate_cities(update, context):
+    users = db.get_all_users()
+    updated = 0
+    for u in users:
+        city = u.get("city")
+        if not city:
+            continue
+        slug = u.get("city_slug") or city_slug(city)
+        lat, lon = u.get("latitude"), u.get("longitude")
+        if lat is None or lon is None:
+            coords = await get_coordinates_from_city(city) or get_city_coordinates(city)
+            if coords:
+                lat, lon = coords
+        if slug != u.get("city_slug") or lat != u.get("latitude") or lon != u.get("longitude"):
+            db.create_or_update_user(u["user_id"], {
+                "city": city, "city_slug": slug, "latitude": lat, "longitude": lon
+            })
+            updated += 1
+    await update.message.reply_text(f"City migration done. Updated: {updated}")
+
+9) Cache city geocodes (optional but recommended)
+
+Create a simple city_cache table or in-memory dict to avoid hitting Nominatim repeatedly:
+
+Key: normalize_city(city).lower()
+
+Value: (lat, lon, slug)
+
+Check cache before making network calls; write back after successful geocode.
+
+10) Tests / smoke checks for the agent to run
+
+Type “Москва” manually → stored: city="Москва", city_slug="moscow", coords set.
+
+Type “Moscow” manually → stored: city="Moscow" (or normalized), city_slug="moscow", same coords.
+
+Send GPS from inside Moscow → coord distance vs manual “Москва” is ≤ 25 km → they appear in each other’s feed.
+
+Type “Warszawa” vs “Warsaw” vs GPS Warsaw → all cluster as nearby/same area.
+
+Small-town near big city (e.g., Pruszków near Warsaw) → still matched via ≤ 25 km rule.
+
+Acceptance criteria (what “done” means):
+
+No duplicate clusters across language variants (Москва/Moscow, Warszawa/Warsaw, Київ/Kyiv).
+
+All new/updated profiles have coords and slug.
+
+Feed includes users within the nearby radius even if their city text differs.
+
+Migration updates legacy users and logs a count.
+
+That’s it. Paste this into Replit’s AI, let it implement, and then run the smoke checks above.

@@ -1237,6 +1237,274 @@ def normalize_city(city_input):
     # Return best match if found, otherwise return original with proper capitalization
     return best_match if best_match else city_input.strip().title()
 
+# ===== NEW COMPREHENSIVE CITY HANDLING SYSTEM =====
+
+import unicodedata
+import math
+
+def strip_diacritics(s: str) -> str:
+    """Remove diacritics/accents from text for ASCII conversion"""
+    return "".join(ch for ch in unicodedata.normalize("NFKD", s) if not unicodedata.combining(ch))
+
+def city_slug(city: str) -> str:
+    """Create canonical city slug for consistent matching across languages"""
+    if not city:
+        return ""
+    
+    norm = normalize_city(city).lower().strip()
+    
+    # Known aliases to consolidate language variants
+    aliases = {
+        "москва": "moscow",
+        "санкт-петербург": "saint-petersburg", 
+        "питер": "saint-petersburg",
+        "spb": "saint-petersburg",
+        "ленинград": "saint-petersburg",
+        
+        # Polish cities
+        "warszawa": "warsaw",
+        "kraków": "krakow", 
+        "wrocław": "wroclaw",
+        "gdańsk": "gdansk",
+        "poznań": "poznan",
+        "łódź": "lodz",
+        
+        # Ukrainian cities
+        "київ": "kyiv",
+        "киев": "kyiv",
+        "львів": "lviv",
+        "львов": "lviv",
+        "одеса": "odesa",
+        "одесса": "odesa",
+        "харків": "kharkiv",
+        "харьков": "kharkiv",
+        
+        # Other major cities
+        "münchen": "munich",
+        "köln": "cologne",
+        "zürich": "zurich",
+        "genève": "geneva",
+        "bruxelles": "brussels",
+        "lisboa": "lisbon",
+        "bucureşti": "bucharest",
+    }
+    
+    slug = aliases.get(norm, norm)
+    slug = strip_diacritics(slug)
+    slug = slug.replace(" ", "-").replace("'", "").replace(".", "")
+    # Remove any remaining non-ASCII characters
+    slug = ''.join(c for c in slug if ord(c) < 128)
+    return slug
+
+async def get_coordinates_from_city(city: str):
+    """Forward geocode city name to coordinates using multiple services"""
+    if not city or not city.strip():
+        return None
+    
+    import aiohttp
+    
+    # Normalize city for better geocoding results
+    normalized_city = normalize_city(city.strip())
+    
+    urls = [
+        f"https://nominatim.openstreetmap.org/search?q={normalized_city}&format=json&limit=1",
+    ]
+    headers = {"User-Agent": "Alt3r Dating Bot / CityGeocode"}
+
+    for url in urls:
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
+                async with session.get(url, headers=headers) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if isinstance(data, list) and data:
+                            lat = float(data[0]["lat"])
+                            lon = float(data[0]["lon"])
+                            logger.info(f"Forward geocoded {city} -> {normalized_city} -> ({lat}, {lon})")
+                            return lat, lon
+        except Exception as e:
+            logger.error(f"Geocoding service error for {city}: {e}")
+            continue
+    
+    logger.warning(f"Forward geocoding failed for: {city}")
+    return None
+
+def get_city_coordinates(city: str):
+    """Fallback city-to-coordinates mapping for major cities"""
+    if not city:
+        return None
+    
+    c = normalize_city(city).lower()
+    table = {
+        # Russia
+        "москва": (55.7558, 37.6176), "moscow": (55.7558, 37.6176),
+        "санкт-петербург": (59.9343, 30.3351), "saint petersburg": (59.9343, 30.3351),
+        "питер": (59.9343, 30.3351), "spb": (59.9343, 30.3351),
+        "екатеринбург": (56.8431, 60.6454), "yekaterinburg": (56.8431, 60.6454),
+        "новосибирск": (55.0084, 82.9357), "novosibirsk": (55.0084, 82.9357),
+        "казань": (55.8304, 49.0661), "kazan": (55.8304, 49.0661),
+        
+        # Poland
+        "warszawa": (52.2297, 21.0122), "warsaw": (52.2297, 21.0122),
+        "kraków": (50.0647, 19.9450), "krakow": (50.0647, 19.9450),
+        "wrocław": (51.1079, 17.0385), "wroclaw": (51.1079, 17.0385),
+        "gdańsk": (54.3520, 18.6466), "gdansk": (54.3520, 18.6466),
+        "poznań": (52.4064, 16.9252), "poznan": (52.4064, 16.9252),
+        "łódź": (51.7592, 19.4550), "lodz": (51.7592, 19.4550),
+        
+        # Ukraine
+        "київ": (50.4501, 30.5234), "kyiv": (50.4501, 30.5234), "kiev": (50.4501, 30.5234),
+        "львів": (49.8397, 24.0297), "lviv": (49.8397, 24.0297), "львов": (49.8397, 24.0297),
+        "одеса": (46.4825, 30.7233), "odesa": (46.4825, 30.7233), "одесса": (46.4825, 30.7233),
+        "харків": (49.9935, 36.2304), "kharkiv": (49.9935, 36.2304), "харьков": (49.9935, 36.2304),
+        
+        # Germany
+        "berlin": (52.5200, 13.4050), "берлин": (52.5200, 13.4050),
+        "munich": (48.1351, 11.5820), "münchen": (48.1351, 11.5820), "мюнхен": (48.1351, 11.5820),
+        "hamburg": (53.5511, 9.9937), "гамбург": (53.5511, 9.9937),
+        "cologne": (50.9375, 6.9603), "köln": (50.9375, 6.9603),
+        
+        # Other European capitals
+        "paris": (48.8566, 2.3522), "париж": (48.8566, 2.3522),
+        "london": (51.5074, -0.1278), "лондон": (51.5074, -0.1278),
+        "madrid": (40.4168, -3.7038), "мадрид": (40.4168, -3.7038),
+        "rome": (41.9028, 12.4964), "рим": (41.9028, 12.4964),
+        "amsterdam": (52.3676, 4.9041), "амстердам": (52.3676, 4.9041),
+        "vienna": (48.2082, 16.3738), "вена": (48.2082, 16.3738),
+        "prague": (50.0755, 14.4378), "прага": (50.0755, 14.4378),
+        
+        # North America
+        "new york": (40.7128, -74.0060), "нью-йорк": (40.7128, -74.0060),
+        "los angeles": (34.0522, -118.2437), "лос-анджелес": (34.0522, -118.2437),
+        "chicago": (41.8781, -87.6298), "чикаго": (41.8781, -87.6298),
+        "toronto": (43.6532, -79.3832), "торонто": (43.6532, -79.3832),
+    }
+    return table.get(c)
+
+def calculate_distance_km(lat1, lon1, lat2, lon2):
+    """Calculate distance between two coordinates using Haversine formula"""
+    if None in [lat1, lon1, lat2, lon2]:
+        return float('inf')
+    
+    R = 6371.0  # Earth radius in km
+    
+    p1 = math.radians(lat1)
+    p2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlmb = math.radians(lon2 - lon1)
+    
+    a = math.sin(dphi/2)**2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb/2)**2
+    c = 2 * math.asin(math.sqrt(a))
+    
+    return R * c
+
+NEARBY_KM = 25  # Consider users within 25km as nearby
+
+def is_nearby(user_a, user_b):
+    """Check if two users are geographically nearby"""
+    # Try direct coordinates first
+    a_lat = user_a.get("latitude")
+    a_lon = user_a.get("longitude") 
+    b_lat = user_b.get("latitude")
+    b_lon = user_b.get("longitude")
+    
+    if all(coord is not None for coord in [a_lat, a_lon, b_lat, b_lon]):
+        return calculate_distance_km(a_lat, a_lon, b_lat, b_lon) <= NEARBY_KM
+    
+    # Try fallback coordinates from city lookup
+    ca = get_city_coordinates(user_a.get("city", "") or user_a.get("city_slug", ""))
+    cb = get_city_coordinates(user_b.get("city", "") or user_b.get("city_slug", ""))
+    
+    if ca and cb:
+        return calculate_distance_km(ca[0], ca[1], cb[0], cb[1]) <= NEARBY_KM
+    
+    # Last fallback: slug equality or regional proximity
+    slug_a = user_a.get("city_slug", "")
+    slug_b = user_b.get("city_slug", "")
+    
+    if slug_a and slug_b and slug_a == slug_b:
+        return True
+    
+    return get_regional_proximity_by_slug(
+        user_a.get("city", ""), user_b.get("city", "")
+    )
+
+def get_regional_proximity_by_slug(city1: str, city2: str) -> bool:
+    """Updated regional proximity using city slugs for consistent matching"""
+    c1, c2 = city_slug(city1), city_slug(city2)
+    
+    regions = {
+        "russia": {"moscow", "saint-petersburg", "kazan", "yekaterinburg", "novosibirsk", "nizhny-novgorod", "samara", "ufa"},
+        "poland": {"warsaw", "krakow", "wroclaw", "gdansk", "poznan", "lodz", "katowice", "szczecin", "bialystok", "lublin"},
+        "ukraine": {"kyiv", "lviv", "kharkiv", "odesa", "dnipro"},
+        "germany": {"berlin", "munich", "hamburg", "cologne", "frankfurt", "stuttgart", "dusseldorf"},
+        "france": {"paris", "lyon", "marseille", "toulouse", "nice", "nantes", "strasbourg", "bordeaux"},
+        "uk": {"london", "manchester", "birmingham", "liverpool", "leeds", "glasgow", "edinburgh"},
+        "usa-east": {"new-york", "boston", "philadelphia", "washington", "atlanta", "miami"},
+        "usa-west": {"los-angeles", "san-francisco", "seattle", "portland", "san-diego"},
+        "usa-central": {"chicago", "detroit", "milwaukee", "minneapolis", "cleveland"},
+    }
+    
+    return any(c1 in region and c2 in region for region in regions.values())
+
+async def migrate_existing_city_slugs():
+    """ONE-TIME MIGRATION: Add city_slug to all existing users without it"""
+    try:
+        logger.info("🔄 Starting city_slug migration for existing users...")
+        
+        all_users = db.get_all_users()
+        updated_count = 0
+        processed_count = 0
+        
+        for user in all_users:
+            processed_count += 1
+            user_id = user.get("user_id")
+            city = user.get("city", "")
+            existing_slug = user.get("city_slug", "")
+            
+            # Skip if user already has a city_slug or no city
+            if existing_slug or not city:
+                continue
+                
+            # Generate city_slug for existing user
+            slug = city_slug(city)
+            
+            if slug:
+                # Try forward geocoding for coordinates if missing
+                coords_updated = False
+                if not user.get("latitude") or not user.get("longitude"):
+                    try:
+                        coords = await get_coordinates_from_city(city)
+                        if coords:
+                            lat, lon = coords
+                            db.create_or_update_user(user_id, {
+                                "city_slug": slug,
+                                "latitude": lat,
+                                "longitude": lon
+                            })
+                            coords_updated = True
+                            logger.info(f"✅ Updated user {user_id}: city='{city}' -> slug='{slug}' + coords ({lat}, {lon})")
+                        else:
+                            db.create_or_update_user(user_id, {"city_slug": slug})
+                            logger.info(f"✅ Updated user {user_id}: city='{city}' -> slug='{slug}' (no coords)")
+                    except Exception as e:
+                        logger.warning(f"Coords lookup failed for {city}: {e}")
+                        db.create_or_update_user(user_id, {"city_slug": slug})
+                        logger.info(f"✅ Updated user {user_id}: city='{city}' -> slug='{slug}' (coords failed)")
+                else:
+                    # Just add the slug
+                    db.create_or_update_user(user_id, {"city_slug": slug})
+                    logger.info(f"✅ Updated user {user_id}: city='{city}' -> slug='{slug}'")
+                
+                updated_count += 1
+        
+        logger.info(f"🎉 City slug migration completed! Processed {processed_count} users, updated {updated_count} users.")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ City slug migration failed: {e}")
+        return False
+
 async def safe_edit_message(query, text, reply_markup=None):
     """Safely edit message with comprehensive media handling"""
     try:
@@ -1887,9 +2155,15 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
                 pass
             
             if city and city != "Unknown Location":
-                context.user_data["city"] = city
-                context.user_data["latitude"] = latitude
-                context.user_data["longitude"] = longitude
+                # NEW: Generate city slug for consistent matching
+                slug = city_slug(city)
+                
+                context.user_data.update({
+                    "city": city,
+                    "city_slug": slug,
+                    "latitude": latitude,
+                    "longitude": longitude
+                })
 
                 if lang == 'en':
                     location_confirmed = f"📍 Location detected: {city}\n\nThis will help find people nearby!"
@@ -1949,10 +2223,66 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         await update.message.reply_text(manual_prompt, reply_markup=reply_markup)
         return CITY
 
-    # Handle manual city text input
+    # Handle manual city text input - NEW ENHANCED VERSION
     elif update.message.text and update.message.text not in ["📍 Поделиться геолокацией", "📍 Share GPS location", "📍 Попробовать еще раз", "📍 Try again", "📍 Использовать GPS", "📍 Use GPS"]:
-        city = normalize_city(update.message.text)
-        context.user_data["city"] = city
+        user = db.get_user(user_id)
+        lang = user.lang if user else 'ru'
+        
+        # Show processing message for manual city input
+        if lang == 'en':
+            processing_msg = "🌍 Processing city and finding coordinates..."
+        else:
+            processing_msg = "🌍 Обрабатываем город и ищем координаты..."
+        
+        processing_message = await update.message.reply_text(processing_msg)
+        
+        # Normalize city name first
+        display_city = normalize_city(update.message.text.strip())
+        
+        # NEW: Try forward geocoding to get coordinates
+        coords = await get_coordinates_from_city(display_city)
+        
+        if coords:
+            lat, lon = coords
+        else:
+            # Fallback to local coordinate map
+            latlon = get_city_coordinates(display_city)
+            if latlon:
+                lat, lon = latlon
+            else:
+                # Last resort: no coordinates but still save city
+                lat = lon = None
+                logger.warning(f"No coordinates found for manually entered city: {display_city}")
+        
+        # Generate city slug for consistent matching
+        slug = city_slug(display_city)
+        
+        # Store all city data
+        context.user_data.update({
+            "city": display_city,
+            "city_slug": slug,
+            "latitude": lat,
+            "longitude": lon
+        })
+        
+        # Delete processing message
+        try:
+            await processing_message.delete()
+        except:
+            pass
+
+        if lat and lon:
+            if lang == 'en':
+                success_msg = f"✅ City set: {display_city} (coordinates found)"
+            else:
+                success_msg = f"✅ Город установлен: {display_city} (координаты найдены)"
+        else:
+            if lang == 'en':
+                success_msg = f"✅ City set: {display_city}"
+            else:
+                success_msg = f"✅ Город установлен: {display_city}"
+        
+        await update.message.reply_text(success_msg)
 
         await update.message.reply_text(
             get_text(user_id, "questionnaire_name"),
@@ -2307,6 +2637,7 @@ async def save_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "gender": user_data["gender"],
             "interest": user_data["interest"],
             "city": user_data["city"],
+            "city_slug": user_data.get("city_slug", ""),  # NEW: Include city slug for consistent matching
             "bio": user_data["bio"],
             "photos": photos,
             "photo_id": photos[0] if photos else media_id,  # Keep for backward compatibility
@@ -3046,8 +3377,27 @@ def calculate_distance_km(lat1, lon1, lat2, lon2):
     return c * r
 
 def calculate_location_priority(current_user, other_user):
-    """Calculate location priority based on GPS coordinates and city names"""
-    # First try GPS-based distance if coordinates are available
+    """Calculate location priority using NEW comprehensive city handling system"""
+    # Use new comprehensive is_nearby function first for binary nearby check
+    if is_nearby(current_user, other_user):
+        # If nearby (within 25km or same city slug), check for more granular distances
+        current_lat = current_user.get('latitude')
+        current_lon = current_user.get('longitude')
+        other_lat = other_user.get('latitude')
+        other_lon = other_user.get('longitude')
+        
+        if all([current_lat, current_lon, other_lat, other_lon]):
+            distance_km = calculate_distance_km(current_lat, current_lon, other_lat, other_lon)
+            
+            if distance_km <= 5:   # Same neighborhood
+                return 0
+            elif distance_km <= 25:  # Same city/metro area  
+                return 1
+        
+        # If no GPS but is_nearby returned True (slug match or regional proximity)
+        return 1  # Same city/region
+    
+    # Not nearby - check broader geographic patterns
     current_lat = current_user.get('latitude')
     current_lon = current_user.get('longitude')
     other_lat = other_user.get('latitude')
@@ -3056,12 +3406,7 @@ def calculate_location_priority(current_user, other_user):
     if all([current_lat, current_lon, other_lat, other_lon]):
         distance_km = calculate_distance_km(current_lat, current_lon, other_lat, other_lon)
         
-        # GPS-based priority levels with more granular distances
-        if distance_km <= 5:   # Same neighborhood
-            return 0
-        elif distance_km <= 25:  # Same city/metro area
-            return 1
-        elif distance_km <= 100:  # Same region
+        if distance_km <= 100:  # Same region
             return 2
         elif distance_km <= 500:  # Same country/state
             return 3
@@ -3070,7 +3415,7 @@ def calculate_location_priority(current_user, other_user):
         else:
             return 5  # Different continents
     
-    # Fallback to improved city matching if no GPS coordinates
+    # Fallback: use enhanced city slug matching
     return calculate_city_proximity(current_user, other_user)
 
 def calculate_city_proximity(current_user, other_user):
@@ -3089,53 +3434,10 @@ def calculate_city_proximity(current_user, other_user):
     if current_normalized == other_normalized:
         return 0
     
-    # Check for regional proximity using city groupings
-    return get_regional_proximity(current_normalized, other_normalized)
+    # Check for regional proximity using improved slug-based system
+    return 3 if get_regional_proximity_by_slug(current_normalized, other_normalized) else 4
 
-def get_regional_proximity(city1, city2):
-    """Get regional proximity score based on geographic regions"""
-    # Define city regions for better matching
-    regions = {
-        'poland': ['warsaw', 'kraków', 'gdansk', 'wrocław', 'poznań', 'łódź', 'katowice', 'szczecin'],
-        'germany': ['berlin', 'munich', 'hamburg', 'cologne', 'frankfurt', 'stuttgart', 'düsseldorf'],
-        'france': ['paris', 'lyon', 'marseille', 'toulouse', 'nice', 'nantes', 'strasbourg'],
-        'uk': ['london', 'manchester', 'birmingham', 'liverpool', 'leeds', 'glasgow', 'edinburgh'],
-        'russia': ['moscow', 'petersburg', 'novosibirsk', 'yekaterinburg', 'kazan', 'nizhny novgorod'],
-        'usa_east': ['new york', 'boston', 'philadelphia', 'washington', 'atlanta', 'miami'],
-        'usa_west': ['los angeles', 'san francisco', 'seattle', 'portland', 'san diego'],
-        'usa_central': ['chicago', 'detroit', 'milwaukee', 'minneapolis', 'cleveland'],
-        'netherlands': ['amsterdam', 'rotterdam', 'utrecht', 'eindhoven', 'tilburg'],
-        'italy': ['rome', 'milan', 'turin', 'naples', 'palermo', 'genoa'],
-        'spain': ['madrid', 'barcelona', 'valencia', 'seville', 'bilbao'],
-    }
-    
-    # Find which regions each city belongs to
-    city1_regions = []
-    city2_regions = []
-    
-    for region, cities in regions.items():
-        if any(city in city1 for city in cities):
-            city1_regions.append(region)
-        if any(city in city2 for city in cities):
-            city2_regions.append(region)
-    
-    # Same region = high proximity
-    if any(region in city2_regions for region in city1_regions):
-        return 1
-    
-    # Same continent groupings
-    european_regions = ['poland', 'germany', 'france', 'uk', 'netherlands', 'italy', 'spain']
-    us_regions = ['usa_east', 'usa_west', 'usa_central']
-    
-    city1_in_europe = any(region in european_regions for region in city1_regions)
-    city2_in_europe = any(region in european_regions for region in city2_regions)
-    city1_in_us = any(region in us_regions for region in city1_regions)
-    city2_in_us = any(region in us_regions for region in city2_regions)
-    
-    if (city1_in_europe and city2_in_europe) or (city1_in_us and city2_in_us):
-        return 2  # Same continent
-    
-    return 5  # Different continents/regions
+# OLD FUNCTION REMOVED - Now using get_regional_proximity_by_slug() in the comprehensive system above
 
 async def start_browsing_unfiltered_profiles(query, context, user_id):
     """Start browsing ALL profiles without gender filtering but with smart prioritization"""
@@ -7653,6 +7955,16 @@ def main():
 
     # Start keep-alive server
     start_keep_alive()
+    
+    # Run one-time migration for existing users (NEW)
+    async def run_migration():
+        await migrate_existing_city_slugs()
+    
+    import asyncio
+    try:
+        asyncio.run(run_migration())
+    except Exception as e:
+        logger.warning(f"Migration failed but bot will continue: {e}")
 
     # Run the bot
     logger.info("Starting Alt3r bot...")

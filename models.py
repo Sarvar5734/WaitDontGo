@@ -27,6 +27,7 @@ class User(Base):
     gender = Column(String(10))  # male, female, other
     interest = Column(String(10))  # male, female, both
     city = Column(String(100))
+    city_slug = Column(String(100))  # ASCII/English key for consistent city matching
     bio = Column(Text)
     
     # Photo storage - array of Telegram file IDs
@@ -37,7 +38,7 @@ class User(Base):
     
     # Location data
     latitude = Column(Float)
-    longitude = Column(String(50))
+    longitude = Column(Float)  # Fixed: should be Float, not String
     
     # Neurodivergent traits and symptoms
     nd_traits = Column(JSON, default=list)
