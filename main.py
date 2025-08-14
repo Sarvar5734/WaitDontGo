@@ -3660,11 +3660,15 @@ async def show_profile_card(query, context, user_id, profile):
 
     keyboard = [message_buttons, nav_buttons, bottom_buttons]
 
+    # Try to display media: photos → videos → text-only (priority order)
     photos = profile.get('photos', [])
+    media_type = profile.get('media_type')
+    media_id = profile.get('media_id')
     
     # Don't delete previous message - just send new one
     # This way old profiles stay visible in chat history
     
+    # Priority 1: Photos
     if photos:
         try:
             # Send new photo message
@@ -3674,21 +3678,45 @@ async def show_profile_card(query, context, user_id, profile):
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode='Markdown'
             )
+            return
         except Exception as e:
             logger.error(f"Error sending photo: {e}")
-            # Fallback to text only
-            await query.message.reply_text(
-                profile_text,
+    
+    # Priority 2: Videos (regular video files)
+    if media_type == 'video' and media_id:
+        try:
+            await query.message.reply_video(
+                video=media_id,
+                caption=profile_text,
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode='Markdown'
             )
-    else:
-        # No photos - send as text message
-        await query.message.reply_text(
-            profile_text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
-        )
+            return
+        except Exception as e:
+            logger.error(f"Error sending video: {e}")
+    
+    # Priority 3: Video notes (round video messages)
+    if media_type == 'video_note' and media_id:
+        try:
+            await query.message.reply_video_note(
+                video_note=media_id,
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            # Send caption separately for video notes since they don't support captions
+            await query.message.reply_text(
+                profile_text,
+                parse_mode='Markdown'
+            )
+            return
+        except Exception as e:
+            logger.error(f"Error sending video note: {e}")
+    
+    # Fallback: Text-only display
+    await query.message.reply_text(
+        profile_text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='Markdown'
+    )
 
 async def handle_like_profile(query, context, user_id, target_id):
     """Handle liking a profile"""
