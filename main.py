@@ -4687,7 +4687,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Send like-back interface if not mutual
                 if not is_match:
                     keyboard = InlineKeyboardMarkup([
-                        [InlineKeyboardButton("❤️ Лайк назад", callback_data=f"like_back_{user_id}")],
+                        [InlineKeyboardButton("❤️ Нравиться", callback_data=f"like_back_{user_id}")],
                         [InlineKeyboardButton("👎 Пропустить", callback_data=f"decline_like_{user_id}")]
                     ])
                     
@@ -6376,7 +6376,7 @@ async def send_message_with_profile(bot, target_id, sender, message_text, is_mat
             text += f"\n💭 {bio}"
 
             keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("❤️ Лайк назад" if lang == 'ru' else "❤️ Like Back", callback_data=f"like_back_{sender['user_id']}")],
+                [InlineKeyboardButton("❤️ Нравиться" if lang == 'ru' else "❤️ Like Back", callback_data=f"like_back_{sender['user_id']}")],
                 [InlineKeyboardButton("👎 Пропустить" if lang == 'ru' else "👎 Skip", callback_data=f"decline_like_{sender['user_id']}")]
             ])
 
