@@ -3007,8 +3007,12 @@ async def show_user_profile(query, user_id):
         [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
     ]
 
-    # Send profile with photo if available
+    # Send profile with media: photos → videos → text-only (priority order)
     photos = user.get('photos', [])
+    media_type = user.get('media_type')
+    media_id = user.get('media_id')
+    
+    # Priority 1: Photos
     if photos:
         try:
             await query.message.reply_photo(
@@ -3018,18 +3022,47 @@ async def show_user_profile(query, user_id):
                 parse_mode='Markdown'
             )
             await query.delete_message()
+            return
         except:
-            await query.edit_message_text(
-                profile_text,
+            pass
+    
+    # Priority 2: Videos (regular video files)
+    if media_type == 'video' and media_id:
+        try:
+            await query.message.reply_video(
+                video=media_id,
+                caption=profile_text,
                 reply_markup=InlineKeyboardMarkup(keyboard),
                 parse_mode='Markdown'
             )
-    else:
-        await query.edit_message_text(
-            profile_text,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode='Markdown'
-        )
+            await query.delete_message()
+            return
+        except:
+            pass
+    
+    # Priority 3: Video notes (round video messages)
+    if media_type == 'video_note' and media_id:
+        try:
+            await query.message.reply_video_note(
+                video_note=media_id,
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            # Send caption separately for video notes
+            await query.message.reply_text(
+                profile_text,
+                parse_mode='Markdown'
+            )
+            await query.delete_message()
+            return
+        except:
+            pass
+    
+    # Fallback: Text-only display
+    await query.edit_message_text(
+        profile_text,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='Markdown'
+    )
 
 async def browse_profiles(query, context, user_id):
     """Browse other user profiles"""
