@@ -10,6 +10,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (August 2025)
 
+**Critical Bot Startup Fix (August 14, 2025):**
+- Fixed asyncio event loop conflict that prevented bot from starting
+- Updated main function to properly handle async/await patterns with Telegram bot framework
+- Resolved "There is no current event loop" and "Cannot close a running event loop" errors
+- Bot now successfully starts and maintains stable connection to Telegram API
+- Improved application initialization sequence for better reliability
+
 **Critical Bug Fixes & Launch Preparation:**
 - Fixed feedback_db crashes by migrating to PostgreSQL (db_manager.add_feedback)
 - Eliminated double menu sends in main message handler

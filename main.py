@@ -7853,7 +7853,7 @@ async def send_payment_invoice_from_message(update, user_id, amount):
             ]])
         )
 
-def main():
+async def main():
     """Main function to run the bot"""
     from telegram.request import HTTPXRequest
     from telegram import BotCommand
@@ -7957,15 +7957,14 @@ def main():
     start_keep_alive()
     
     # Run one-time migration for existing users (NEW)
-    async def run_migration():
-        await migrate_existing_city_slugs()
-    
-    import asyncio
     try:
-        asyncio.run(run_migration())
+        await migrate_existing_city_slugs()
     except Exception as e:
         logger.warning(f"Migration failed but bot will continue: {e}")
 
+    # Initialize the application
+    await application.initialize()
+    
     # Run the bot
     logger.info("Starting Alt3r bot...")
     max_retries = 3
@@ -7974,20 +7973,30 @@ def main():
     while retry_count < max_retries:
         try:
             logger.info(f"Attempt {retry_count + 1}/{max_retries} to start bot...")
-            # Add polling timeout to reduce API call frequency
-            application.run_polling(
+            # Start polling manually using the updater
+            await application.start()
+            await application.updater.start_polling(
                 drop_pending_updates=True,
                 timeout=15,  # Wait up to 15 seconds for new updates
                 poll_interval=2.0  # Wait 2 seconds between polling attempts
             )
+            # Keep the bot running
+            try:
+                import asyncio
+                await asyncio.Event().wait()  # Wait indefinitely
+            except KeyboardInterrupt:
+                logger.info("Bot stopped by user")
+            finally:
+                await application.updater.stop()
+                await application.stop()
             break
         except Conflict as e:
             retry_count += 1
             logger.warning(f"Bot conflict detected (attempt {retry_count}): {e}")
             if retry_count < max_retries:
                 logger.info("Waiting 5 seconds before retry...")
-                import time
-                time.sleep(5)
+                import asyncio
+                await asyncio.sleep(5)
             else:
                 logger.error("Max retries reached. Another bot instance may be running.")
                 process_manager.release_lock()
@@ -8003,8 +8012,10 @@ def main():
             sys.exit(1)
     
     # Final cleanup
+    await application.shutdown()
     process_manager.release_lock()
     logger.info("Bot shutdown complete")
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
