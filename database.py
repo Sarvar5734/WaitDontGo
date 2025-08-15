@@ -31,7 +31,7 @@ class User(Base):
     user_id = Column(Integer, unique=True, nullable=False, index=True)
     
     # User preferences
-    language = Column(String(5), default='en')
+    lang = Column(String(5), default='en')
     
     # Profile information
     name = Column(String(100))

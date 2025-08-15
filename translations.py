@@ -261,7 +261,7 @@ def get_user_language(user_id: int, session) -> str:
     Returns:
         Language code ('en' or 'ru'), defaults to 'en'
     """
-    from database import User  # Import here to avoid circular imports
+    from models import User  # Import here to avoid circular imports
     
     user = session.query(User).filter(User.user_id == user_id).first()
     if user and user.lang:
@@ -283,8 +283,9 @@ def get_text(user_id: int, key: str, session=None) -> str:
     if session:
         lang = get_user_language(user_id, session)
     else:
-        from database import get_db_session  # Import here to avoid circular imports
-        with get_db_session() as db_session:
+        from database_manager import DatabaseManager  # Import here to avoid circular imports
+        db_manager = DatabaseManager()
+        with db_manager.get_session() as db_session:
             lang = get_user_language(user_id, db_session)
     
     return TEXTS[lang].get(key, TEXTS['en'].get(key, key))
