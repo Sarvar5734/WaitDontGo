@@ -26,6 +26,7 @@ Preferred communication style: Simple, everyday language.
 - ✅ Created comprehensive PAYMENT_SETUP_GUIDE.md with setup instructions
 - ✅ Bot successfully starts and processes payment callbacks without errors
 - ✅ Fixed TON payment message formatting (replaced raw translation keys with proper localized text)
+- ✅ Fixed TON menu description placeholder issue (now displays proper Russian/English text)
 - ✅ Payment integration fully tested and operational with proper multilingual support
 
 **Security & Access Control Fix (August 15, 2025):**

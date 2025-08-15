@@ -7733,9 +7733,24 @@ async def show_ton_amounts(query, user_id):
     """Show TON payment amounts"""
     from payment_system import get_ton_amounts_keyboard
     
-    text = get_text(user_id, "support_title") + "\n\n"
-    text += get_text(user_id, "ton_payment_description") + "\n\n"
-    text += get_text(user_id, "support_amounts")
+    # Get user to determine language
+    user = db.get_user(user_id)
+    if user and hasattr(user, 'lang'):
+        lang = user.lang or 'ru'
+    elif user and isinstance(user, dict):
+        lang = user.get('lang', 'ru')
+    else:
+        lang = 'ru'
+    
+    # Create properly formatted message based on language
+    if lang == 'en':
+        text = "💖 Support Alt3r Project\n\n"
+        text += "Support Alt3r with TON cryptocurrency\n\n"
+        text += "💰 Choose your support amount:"
+    else:
+        text = "💖 Поддержать проект Alt3r\n\n"
+        text += "Поддержите Alt3r с помощью криптовалюты TON\n\n"
+        text += "💰 Выберите сумму для покрытия расходов:"
     
     keyboard = await get_ton_amounts_keyboard(user_id)
     
