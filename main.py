@@ -3034,24 +3034,41 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Keep the language setting but clear all other profile data
             user_lang = user.get('lang', 'ru') if user else 'ru'
 
-            # Reset user profile but keep essential fields with proper types
-            reset_data = {
-                'lang': user_lang,
-                'profile_complete': False,
-                'active': True,
-                'photos': [],
-                'nd_traits': [],
-                'nd_symptoms': [],
-                'likes': [],
-                'sent_likes': [],
-                'received_likes': [],
-                'unnotified_likes': [],
-                'declined_likes': []
-            }
-            
-            # Remove fields that should be cleared during recreation
-            # This will trigger the registration flow to collect them again
-            db.create_or_update_user(user_id, reset_data)
+            # Clear essential profile fields directly in the database to trigger registration flow
+            try:
+                from database_manager import db_manager
+                
+                # Reset critical profile fields to NULL/empty to force re-registration
+                session = db_manager.get_session()
+                user_obj = session.query(db_manager.User).filter_by(user_id=user_id).first()
+                if user_obj:
+                    user_obj.name = None
+                    user_obj.age = None  
+                    user_obj.gender = None
+                    user_obj.city = None
+                    user_obj.bio = None
+                    user_obj.photos = []
+                    user_obj.photo_id = None
+                    user_obj.media_type = None
+                    user_obj.media_id = None
+                    user_obj.nd_traits = []
+                    user_obj.nd_symptoms = []
+                    user_obj.lang = user_lang
+                    session.commit()
+                session.close()
+                
+                logger.info(f"✅ Profile cleared for user {user_id} - ready for recreation")
+                    
+            except Exception as e:
+                logger.error(f"Error clearing profile for user {user_id}: {e}")
+                # Fallback to previous method
+                reset_data = {
+                    'lang': user_lang,
+                    'photos': [],
+                    'nd_traits': [],
+                    'nd_symptoms': []
+                }
+                db.create_or_update_user(user_id, reset_data)
 
             # Clear conversation data
             if context.user_data:
