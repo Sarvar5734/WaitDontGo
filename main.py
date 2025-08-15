@@ -2500,7 +2500,9 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         # Handle photo uploads
         elif update.message.photo:
             # Initialize photos list if not exists
-            if "photos" not in context.user_data:
+            if not context.user_data or "photos" not in context.user_data:
+                if not context.user_data:
+                    context.user_data = {}
                 context.user_data["photos"] = []
 
             # Get the largest photo
@@ -2631,10 +2633,10 @@ async def save_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"📸 {photo_prompt}")
             return PHOTO
 
-        # Validate required fields
+        # Validate required fields  
         required_fields = ["name", "age", "gender", "interest", "city", "bio"]
         for field in required_fields:
-            if field not in user_data or not user_data[field]:
+            if not user_data or field not in user_data or not user_data[field]:
                 logger.error(f"Missing or empty required field: {field}")
                 await update.message.reply_text(get_text(user_id, "profile_missing_field_error").format(field=field))
                 return ConversationHandler.END
@@ -3120,7 +3122,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(success_text)
             
             # If user has no profile data, start profile creation
-            if not is_profile_complete_dict(user):
+            if user and not is_profile_complete_dict(user):
                 await asyncio.sleep(1)  # Brief pause
                 welcome_text = get_text(user_id, "welcome")
                 age_text = get_text(user_id, "questionnaire_age")
