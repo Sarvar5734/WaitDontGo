@@ -20,6 +20,7 @@ Preferred communication style: Simple, everyday language.
 - ✅ Database now contains culturally appropriate content for Russian users
 - ✅ **UPDATED: Each female profile now has a unique photo (12 total photos for 30 profiles)**
 - ✅ **COMPLETED: Eliminated duplicate photos - all profiles use distinct images in rotation**
+- ✅ **UPDATED: All fake profile ages now 26 or younger (range: 18-26 years old)**
 
 ## Recent Changes (August 2025)
 
