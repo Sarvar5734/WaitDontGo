@@ -5644,7 +5644,19 @@ async def submit_user_report(query, context, user_id, reported_user_id, reason):
         await query.answer("❌ Ошибка при отправке жалобы")
 
 # Admin Functions
-ADMIN_USER_IDS = []  # 🚨 CRITICAL: Add your Telegram user ID here for admin access! Example: [123456789]
+ADMIN_USER_IDS_STRING = os.getenv('ADMIN_USER_IDS', '')
+logger.info(f"🔍 Debug: ADMIN_USER_IDS env var = '{ADMIN_USER_IDS_STRING}'")
+
+if ADMIN_USER_IDS_STRING:
+    ADMIN_USER_IDS = [int(id.strip()) for id in ADMIN_USER_IDS_STRING.split(',') if id.strip().isdigit()]
+else:
+    ADMIN_USER_IDS = []
+
+# Log admin configuration for debugging
+if ADMIN_USER_IDS:
+    logger.info(f"🛡️ Admin access configured for {len(ADMIN_USER_IDS)} user(s): {ADMIN_USER_IDS}")
+else:
+    logger.warning("⚠️ No admin users configured - admin features will be disabled")
 
 def is_admin(user_id):
     """Check if user is admin"""
