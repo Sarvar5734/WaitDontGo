@@ -5556,7 +5556,7 @@ async def submit_user_report(query, context, user_id, reported_user_id, reason):
         await query.answer("❌ Ошибка при отправке жалобы")
 
 # Admin Functions
-ADMIN_USER_IDS = [410177871]  # Add admin user IDs here
+ADMIN_USER_IDS = []  # Add admin user IDs here - currently no admins configured
 
 def is_admin(user_id):
     """Check if user is admin"""

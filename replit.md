@@ -10,6 +10,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (August 2025)
 
+**Security & Access Control Fix (August 15, 2025):**
+- Fixed admin panel visibility issue where regular users could see admin controls
+- Cleared ADMIN_USER_IDS list to properly restrict admin access
+- Admin panel now hidden from all users until proper admin IDs are configured
+- Improved security by preventing unauthorized access to administrative functions
+
 **Critical Bot Startup Fix (August 14, 2025):**
 - Fixed asyncio event loop conflict that prevented bot from starting
 - Updated main function to properly handle async/await patterns with Telegram bot framework
