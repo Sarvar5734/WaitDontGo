@@ -3034,21 +3034,24 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Keep the language setting but clear all other profile data
             user_lang = user.get('lang', 'ru') if user else 'ru'
 
-            db.create_or_update_user(user_id, {
-                'name': '',
-                'age': '',
-                'gender': '',
-                'interest': '',
-                'city': '',
-                'bio': '',
+            # Reset user profile but keep essential fields with proper types
+            reset_data = {
+                'lang': user_lang,
+                'profile_complete': False,
+                'active': True,
                 'photos': [],
-                'photo_id': '',
-                'media_type': '',
-                'media_id': '',
                 'nd_traits': [],
                 'nd_symptoms': [],
-                'lang': user_lang
-            })
+                'likes': [],
+                'sent_likes': [],
+                'received_likes': [],
+                'unnotified_likes': [],
+                'declined_likes': []
+            }
+            
+            # Remove fields that should be cleared during recreation
+            # This will trigger the registration flow to collect them again
+            db.create_or_update_user(user_id, reset_data)
 
             # Clear conversation data
             if context.user_data:
