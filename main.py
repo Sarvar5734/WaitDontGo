@@ -2135,6 +2135,10 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             reply_markup=reply_markup
         )
         return INTEREST
+    
+    # Handle cancellation and exit to main menu
+    if update.message and update.message.text and update.message.text.strip() in ["❌ Отмена", "❌ Cancel", "/menu", "/start"]:
+        return await force_main_menu(update, context)
 
     # Handle GPS location
     if update.message and update.message.location:
@@ -4762,7 +4766,13 @@ async def force_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Clear any conversation state
     context.user_data.clear()
     
-    # Show main menu directly without intermediate message
+    # Remove any reply keyboards that might be showing registration buttons
+    await update.message.reply_text(
+        "🏠 Переход в главное меню...",
+        reply_markup=ReplyKeyboardRemove()
+    )
+    
+    # Show main menu directly 
     await update.message.reply_text(
         get_text(user_id, "main_menu"),
         reply_markup=get_main_menu(user_id)
@@ -8093,6 +8103,7 @@ async def main():
     async def post_init(application):
         commands = [
             BotCommand("start", "🔄 Перезапустить бота / Restart the bot"),
+            BotCommand("menu", "🏠 Главное меню / Main Menu"),
             BotCommand("language", "🌐 Изменить язык / Change Language"),
             BotCommand("help", "❓ Помощь / Help")
         ]
@@ -8142,13 +8153,18 @@ async def main():
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
             ]
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            CommandHandler("start", restart),
+            CommandHandler("menu", force_main_menu)
+        ],
         allow_reentry=True
     )
 
     # Add handlers
     application.add_handler(conv_handler)
     application.add_handler(CommandHandler("restart", restart))
+    application.add_handler(CommandHandler("menu", force_main_menu))
     
     application.add_handler(CommandHandler("language", show_language_command))
     application.add_handler(CommandHandler("help", show_help_command))

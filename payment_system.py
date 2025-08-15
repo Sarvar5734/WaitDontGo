@@ -242,12 +242,22 @@ class TONPayment:
             if not user:
                 return False
                 
-            pending_payments = user.get('pending_ton_payments', [])
+            # Handle both dict and model object cases
+            if hasattr(user, 'get'):
+                # Dictionary case
+                pending_payments = user.get('pending_ton_payments', [])
+                completed_payments = user.get('payments', [])
+            else:
+                # Model object case  
+                pending_payments = getattr(user, 'pending_ton_payments', []) or []
+                completed_payments = getattr(user, 'payments', []) or []
+            
             payment_record = None
             
             # Find the payment record
             for payment in pending_payments:
-                if payment.get('comment') == payment_id:
+                payment_comment = payment.get('comment') if hasattr(payment, 'get') else getattr(payment, 'comment', None)
+                if payment_comment == payment_id:
                     payment_record = payment
                     break
             
@@ -256,20 +266,25 @@ class TONPayment:
                 return False
             
             # Check if payment is received
-            expected_amount = float(payment_record['amount'])
+            payment_amount = payment_record.get('amount') if hasattr(payment_record, 'get') else getattr(payment_record, 'amount', 0)
+            expected_amount = float(payment_amount)
             payment_received = await self.check_ton_payment(payment_id, expected_amount)
             
             if payment_received:
                 # Mark as completed
-                payment_record['status'] = 'completed'
-                payment_record['completed_at'] = datetime.now().isoformat()
+                if hasattr(payment_record, 'get'):
+                    payment_record['status'] = 'completed'
+                    payment_record['completed_at'] = datetime.now().isoformat()
+                else:
+                    payment_record.status = 'completed'
+                    payment_record.completed_at = datetime.now().isoformat()
                 
                 # Move to completed payments
-                completed_payments = user.get('payments', [])
                 completed_payments.append(payment_record)
                 
                 # Remove from pending
-                pending_payments = [p for p in pending_payments if p.get('comment') != payment_id]
+                pending_payments = [p for p in pending_payments 
+                                  if (p.get('comment') if hasattr(p, 'get') else getattr(p, 'comment', None)) != payment_id]
                 
                 # Update database
                 db.create_or_update_user(user_id, {
