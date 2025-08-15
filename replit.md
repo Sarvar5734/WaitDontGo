@@ -18,6 +18,8 @@ Preferred communication style: Simple, everyday language.
 - ✅ Russian language bios with authentic personality types and neurodivergent traits
 - ✅ Realistic interactions between profiles (likes, mutual connections)
 - ✅ Database now contains culturally appropriate content for Russian users
+- ✅ **UPDATED: Each female profile now has a unique photo (12 total photos for 30 profiles)**
+- ✅ **COMPLETED: Eliminated duplicate photos - all profiles use distinct images in rotation**
 
 ## Recent Changes (August 2025)
 
