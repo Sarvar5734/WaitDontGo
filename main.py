@@ -7893,12 +7893,7 @@ async def send_ton_payment_invoice(query, user_id, amount, context=None):
         if invoice_data:
             # Get user to determine language
             user = db.get_user(user_id)
-            if user and hasattr(user, 'lang'):
-                lang = user.lang or 'ru'
-            elif user and isinstance(user, dict):
-                lang = user.get('lang', 'ru')
-            else:
-                lang = 'ru'
+            lang = user.get('lang', 'ru') if user else 'ru'
             
             # Create properly formatted message based on language
             if lang == 'en':
