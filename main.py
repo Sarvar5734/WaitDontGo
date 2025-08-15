@@ -1600,7 +1600,7 @@ def is_profile_complete(user: User) -> bool:
             return False
 
     # Check media - either media_id or photos array (must have actual content)
-    has_media = (user.media_id and user.media_id.strip()) or (user.photos and len(user.photos) > 0 and user.photos[0])
+    has_media = bool((user.media_id and str(user.media_id).strip()) or (user.photos and len(user.photos) > 0 and user.photos[0]))
 
     return bool(has_media)
 
@@ -1825,13 +1825,17 @@ def matches_interest_criteria(user1: dict, user2: dict) -> bool:
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Start the conversation and send welcome message"""
+    if not update.effective_user:
+        return ConversationHandler.END
+        
     user_id = update.effective_user.id
 
     # Initialize ratings for all users if not done
     initialize_user_ratings()
 
     # Clear any existing conversation data
-    context.user_data.clear()
+    if context.user_data:
+        context.user_data.clear()
     
     # Mark that we're starting a conversation
     context.user_data['in_conversation'] = True
@@ -1846,11 +1850,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         
         if is_complete:
             # User already exists with complete profile - show main menu
-            context.user_data.pop('in_conversation', None)  # Clear conversation flag
-            await update.message.reply_text(
-                get_text(user_id, "main_menu"),
-                reply_markup=get_main_menu(user_id)
-            )
+            if context.user_data:
+                context.user_data.pop('in_conversation', None)  # Clear conversation flag
+            if update.message:
+                await update.message.reply_text(
+                    get_text(user_id, "main_menu"),
+                    reply_markup=get_main_menu(user_id)
+                )
             return ConversationHandler.END
 
     # If user exists but profile incomplete, continue where they left off
@@ -1858,18 +1864,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         lang = existing_user.get('lang', 'ru')
         
         # Fill context with existing data where available
-        if existing_user.get('age'):
-            context.user_data['age'] = existing_user['age']
-        if existing_user.get('gender'):
-            context.user_data['gender'] = existing_user['gender']
-        if existing_user.get('interest'):
-            context.user_data['interest'] = existing_user['interest']
-        if existing_user.get('city'):
-            context.user_data['city'] = existing_user['city']
-        if existing_user.get('name'):
-            context.user_data['name'] = existing_user['name']
-        if existing_user.get('bio'):
-            context.user_data['bio'] = existing_user['bio']
+        if context.user_data is not None:
+            if existing_user.get('age'):
+                context.user_data['age'] = existing_user['age']
+            if existing_user.get('gender'):
+                context.user_data['gender'] = existing_user['gender']
+            if existing_user.get('interest'):
+                context.user_data['interest'] = existing_user['interest']
+            if existing_user.get('city'):
+                context.user_data['city'] = existing_user['city']
+            if existing_user.get('name'):
+                context.user_data['name'] = existing_user['name']
+            if existing_user.get('bio'):
+                context.user_data['bio'] = existing_user['bio']
         
         context.user_data['selected_nd_traits'] = existing_user.get('nd_traits', [])
         context.user_data['selected_characteristics'] = existing_user.get('nd_symptoms', [])
@@ -1979,7 +1986,8 @@ async def handle_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                 get_text(user_id, "main_menu"),
                 reply_markup=get_main_menu(user_id)
             )
-            context.user_data.clear()
+            if context.user_data:
+                context.user_data.clear()
             return ConversationHandler.END
         
         if not age_text.isdigit():
@@ -2114,7 +2122,7 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     user_id = update.effective_user.id
 
     # Handle back button
-    if update.message.text and update.message.text.strip() in ["🔙 Назад", "🔙 Back"]:
+    if update.message and update.message.text and update.message.text.strip() in ["🔙 Назад", "🔙 Back"]:
         keyboard = [
             [KeyboardButton(get_text(user_id, "btn_girls"))],
             [KeyboardButton(get_text(user_id, "btn_boys"))],
@@ -2129,14 +2137,19 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         return INTEREST
 
     # Handle GPS location
-    if update.message.location:
+    if update.message and update.message.location:
         try:
             latitude = update.message.location.latitude
             longitude = update.message.location.longitude
 
             # Show loading message
             user = db.get_user(user_id)
-            lang = user.lang if user else 'ru'
+            if user and hasattr(user, 'lang'):
+                lang = user.lang or 'ru'
+            elif user and isinstance(user, dict):
+                lang = user.get('lang', 'ru')
+            else:
+                lang = 'ru'
             
             if lang == 'en':
                 loading_msg = "📍 Detecting your city from GPS coordinates..."
@@ -2672,7 +2685,8 @@ async def save_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=get_main_menu(user_id)
         )
 
-        context.user_data.clear()  # This will also clear the 'in_conversation' flag
+        if context.user_data:
+            context.user_data.clear()  # This will also clear the 'in_conversation' flag
 
     except Exception as e:
         logger.error(f"Error saving user profile: {e}")
@@ -2683,10 +2697,16 @@ async def save_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle callback queries with optimized response"""
+    if not update.callback_query:
+        return
+        
     query = update.callback_query
     # Answer callback immediately to improve perceived performance
     await query.answer()
 
+    if not query.from_user:
+        return
+        
     user_id = query.from_user.id
     data = query.data
     
@@ -2703,9 +2723,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await browse_profiles(query, context, user_id)
         elif data == "browse_all_profiles":
             # Clear previous browsing data and start browsing
-            context.user_data.pop('browsing_profiles', None)
-            context.user_data.pop('current_profile_index', None)
-            context.user_data['browse_started'] = True
+            if context.user_data:
+                context.user_data.pop('browsing_profiles', None)
+                context.user_data.pop('current_profile_index', None)
+                context.user_data['browse_started'] = True
             await start_browsing_profiles(query, context, user_id)
         elif data == "change_photo":
             await start_change_photo(query, context, user_id)
@@ -2735,7 +2756,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await show_support_menu(query, user_id)
         elif data == "back_to_menu":
             # Clear any conversation state and lingering keyboards
-            context.user_data.clear()
+            if context.user_data:
+                context.user_data.clear()
             
             # Ultra-fast direct menu transition
             await safe_edit_message(
@@ -3028,7 +3050,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             })
 
             # Clear conversation data
-            context.user_data.clear()
+            if context.user_data:
+                context.user_data.clear()
 
             if current_lang == 'en':
                 welcome_text = "🔄 Profile Recreation Started!\n\n✨ Let's create your new profile. We'll go through all the steps again.\n\nTo restart the profile creation process, please send /start"
@@ -3116,7 +3139,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.message.reply_text(combined_text, reply_markup=reply_markup)
                 
                 # Set conversation state properly
-                context.user_data.clear()
+                if context.user_data:
+                    context.user_data.clear()
                 context.user_data['in_conversation'] = True
                 context.user_data['language_selected'] = True
                 # Note: We can't return a state here since this is in a callback handler
@@ -5610,7 +5634,7 @@ async def submit_user_report(query, context, user_id, reported_user_id, reason):
         await query.answer("❌ Ошибка при отправке жалобы")
 
 # Admin Functions
-ADMIN_USER_IDS = []  # Add admin user IDs here - currently no admins configured
+ADMIN_USER_IDS = []  # 🚨 CRITICAL: Add your Telegram user ID here for admin access! Example: [123456789]
 
 def is_admin(user_id):
     """Check if user is admin"""
