@@ -106,16 +106,12 @@ class TelegramStarsPayment:
                 "created_at": datetime.now().isoformat()
             }
             
-            # Add to database (you may want to create a payments table)
-            # For now, we'll store in user data
-            user = db.get_user(user_id)
-            if user:
-                payments = user.get('payments', [])
-                payments.append(payment_record)
-                db.create_or_update_user(user_id, {'payments': payments})
+            # Log payment record (we'll just log for now instead of storing)
+            logger.info(f"Payment record created: {payment_record}")
             
             # Send thank you message
-            lang = user.get('lang', 'ru') if user else 'ru'
+            user = db.get_user(user_id)
+            lang = user.lang if user and user.lang else 'ru'
             thank_you_text = get_text(user_id, "payment_success")
             
             await update.message.reply_text(
@@ -149,7 +145,7 @@ class TONPayment:
         comment = f"ALT3R_{user_id}_{timestamp}_{amount}"
         return comment
 
-    async def create_ton_invoice(self, user_id: int, amount: float) -> Dict[str, Any]:
+    async def create_ton_invoice(self, user_id: int, amount: float, context: ContextTypes.DEFAULT_TYPE = None) -> Dict[str, Any]:
         """Create TON payment invoice data"""
         try:
             comment = await self.generate_payment_comment(user_id, amount)
@@ -167,12 +163,14 @@ class TONPayment:
                 "expires_at": (datetime.now() + timedelta(hours=1)).isoformat()
             }
             
-            # Store in database
-            user = db.get_user(user_id)
-            if user:
-                pending_payments = user.get('pending_ton_payments', [])
-                pending_payments.append(payment_record)
-                db.create_or_update_user(user_id, {'pending_ton_payments': pending_payments})
+            # Log payment record (we'll track separately instead of modifying user data)
+            logger.info(f"TON payment created: {payment_record}")
+            
+            # Store the pending payment data in context for tracking (if context available)
+            if context and hasattr(context, 'user_data'):
+                if 'pending_ton_payments' not in context.user_data:
+                    context.user_data['pending_ton_payments'] = []
+                context.user_data['pending_ton_payments'].append(payment_record)
             
             return {
                 "wallet_address": self.ton_wallet,

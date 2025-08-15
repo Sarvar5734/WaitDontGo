@@ -3152,7 +3152,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await start_custom_ton_amount(query, context, user_id)
             else:
                 amount = float(amount_str)
-                await send_ton_payment_invoice(query, user_id, amount)
+                await send_ton_payment_invoice(query, user_id, amount, context)
         
         # TON payment status check
         elif data.startswith("check_ton_"):
@@ -7826,13 +7826,13 @@ async def send_stars_payment_invoice(update, context, user_id, amount):
             ]])
         )
 
-async def send_ton_payment_invoice(query, user_id, amount):
+async def send_ton_payment_invoice(query, user_id, amount, context=None):
     """Send TON payment invoice"""
     try:
         from payment_system import ton_payment
         
-        # Create TON payment invoice
-        invoice_data = await ton_payment.create_ton_invoice(user_id, amount)
+        # Create TON payment invoice with context
+        invoice_data = await ton_payment.create_ton_invoice(user_id, amount, context)
         
         if invoice_data:
             text = f"{get_text(user_id, 'generate_ton_invoice')}\n\n"
