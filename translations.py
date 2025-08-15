@@ -264,8 +264,8 @@ def get_user_language(user_id: int, session) -> str:
     from database import User  # Import here to avoid circular imports
     
     user = session.query(User).filter(User.user_id == user_id).first()
-    if user and user.language:
-        return user.language
+    if user and user.lang:
+        return user.lang
     return 'en'
 
 def get_text(user_id: int, key: str, session=None) -> str:
