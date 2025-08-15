@@ -3130,16 +3130,34 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data.startswith("rate_app_"):
             rating = int(data.split("_")[2])
             await save_app_rating(query, user_id, rating)
-        elif data.startswith("support_"):
-            amount = data.split("_")[1]
-            if amount == "custom":
-                await start_custom_amount(query, context, user_id)
+        # Payment method selection
+        elif data == "payment_method_stars":
+            await show_stars_amounts(query, user_id)
+        elif data == "payment_method_ton":
+            await show_ton_amounts(query, user_id)
+        
+        # Telegram Stars payments
+        elif data.startswith("stars_"):
+            amount_str = data.split("_")[1]
+            if amount_str == "custom":
+                await start_custom_stars_amount(query, context, user_id)
             else:
-                await send_payment_invoice(query, user_id, int(amount))
-        elif data == "payment_success":
-            await handle_payment_success(query, user_id)
-        elif data == "payment_cancelled":
-            await handle_payment_cancelled(query, user_id)
+                amount = int(amount_str)
+                await send_stars_payment_invoice(update, context, user_id, amount)
+        
+        # TON payments
+        elif data.startswith("ton_"):
+            amount_str = data.split("_")[1]
+            if amount_str == "custom":
+                await start_custom_ton_amount(query, context, user_id)
+            else:
+                amount = float(amount_str)
+                await send_ton_payment_invoice(query, user_id, amount)
+        
+        # TON payment status check
+        elif data.startswith("check_ton_"):
+            payment_id = data.split("check_ton_")[1]
+            await check_ton_payment_status(query, user_id, payment_id)
         else:
             await query.edit_message_text("Функция в разработке")
 
@@ -5058,31 +5076,68 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 return
 
-    # Handle custom payment amount input
-    if context.user_data.get('waiting_custom_amount') and update.message.text:
+    # Handle custom Stars amount input
+    if context.user_data.get('waiting_custom_stars') and update.message.text:
+        from payment_system import validate_stars_amount
         try:
-            amount_text = update.message.text.strip().replace('$', '').replace(',', '.')
-            amount = float(amount_text)
+            amount_text = update.message.text.strip()
+            amount = validate_stars_amount(amount_text)
             
-            if amount < 1:
+            if amount is None:
                 await update.message.reply_text(
-                    get_text(user_id, "invalid_amount"),
+                    get_text(user_id, "invalid_stars_amount"),
                     reply_markup=InlineKeyboardMarkup([[
-                        InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
+                        InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_stars")
                     ]])
                 )
                 return
             
-            # Process payment with custom amount
-            context.user_data.pop('waiting_custom_amount', None)
-            await send_payment_invoice_from_message(update, user_id, int(amount))
+            # Process Stars payment with custom amount
+            context.user_data.pop('waiting_custom_stars', None)
+            await send_stars_payment_invoice(update, context, user_id, amount)
             return
             
-        except ValueError:
+        except Exception as e:
+            logger.error(f"Error processing custom Stars amount: {e}")
             await update.message.reply_text(
-                get_text(user_id, "invalid_amount"),
+                get_text(user_id, "invalid_stars_amount"),
                 reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
+                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_stars")
+                ]])
+            )
+            return
+    
+    # Handle custom TON amount input
+    if context.user_data.get('waiting_custom_ton') and update.message.text:
+        from payment_system import validate_ton_amount
+        try:
+            amount_text = update.message.text.strip()
+            amount = validate_ton_amount(amount_text)
+            
+            if amount is None:
+                await update.message.reply_text(
+                    get_text(user_id, "invalid_ton_amount"),
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_ton")
+                    ]])
+                )
+                return
+            
+            # Process TON payment with custom amount
+            context.user_data.pop('waiting_custom_ton', None)
+            # Create a fake query object for send_ton_payment_invoice
+            fake_query = type('obj', (object,), {
+                'edit_message_text': lambda text, reply_markup=None, parse_mode=None: update.message.reply_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
+            })()
+            await send_ton_payment_invoice(fake_query, user_id, amount)
+            return
+            
+        except Exception as e:
+            logger.error(f"Error processing custom TON amount: {e}")
+            await update.message.reply_text(
+                get_text(user_id, "invalid_ton_amount"),
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_ton")
                 ]])
             )
             return
@@ -7645,125 +7700,215 @@ async def send_browsing_interruption(user_id, application):
 # ===== PAYMENT SYSTEM FUNCTIONS =====
 
 async def show_support_menu(query, user_id):
-    """Show support project menu with payment options"""
+    """Show support project menu with Telegram Stars and TON payment options"""
+    from payment_system import get_payment_options
+    
     text = get_text(user_id, "support_title") + "\n\n"
     text += get_text(user_id, "support_description") + "\n\n"
     text += get_text(user_id, "support_amounts")
     
-    keyboard = [
-        [InlineKeyboardButton(get_text(user_id, "support_5"), callback_data="support_5")],
-        [InlineKeyboardButton(get_text(user_id, "support_10"), callback_data="support_10")],
-        [InlineKeyboardButton(get_text(user_id, "support_25"), callback_data="support_25")],
-        [InlineKeyboardButton(get_text(user_id, "support_50"), callback_data="support_50")],
-        [InlineKeyboardButton(get_text(user_id, "support_custom"), callback_data="support_custom")],
-        [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
-    ]
+    keyboard = await get_payment_options(user_id)
     
     await query.edit_message_text(
         text,
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        reply_markup=keyboard
     )
 
-async def start_custom_amount(query, context, user_id):
-    """Start custom amount input"""
-    context.user_data['waiting_custom_amount'] = True
+async def show_stars_amounts(query, user_id):
+    """Show Telegram Stars payment amounts"""
+    from payment_system import get_stars_amounts_keyboard
+    
+    text = get_text(user_id, "support_title") + "\n\n"
+    text += get_text(user_id, "stars_payment_description") + "\n\n"
+    text += get_text(user_id, "support_amounts")
+    
+    keyboard = await get_stars_amounts_keyboard(user_id)
+    
+    await query.edit_message_text(
+        text,
+        reply_markup=keyboard
+    )
+
+async def show_ton_amounts(query, user_id):
+    """Show TON payment amounts"""
+    from payment_system import get_ton_amounts_keyboard
+    
+    text = get_text(user_id, "support_title") + "\n\n"
+    text += get_text(user_id, "ton_payment_description") + "\n\n"
+    text += get_text(user_id, "support_amounts")
+    
+    keyboard = await get_ton_amounts_keyboard(user_id)
+    
+    await query.edit_message_text(
+        text,
+        reply_markup=keyboard
+    )
+
+async def start_custom_stars_amount(query, context, user_id):
+    """Start custom Stars amount input"""
+    context.user_data['waiting_custom_stars'] = True
     
     try:
         await query.edit_message_text(
-            get_text(user_id, "custom_amount_prompt"),
+            get_text(user_id, "custom_stars_prompt"),
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_stars")
             ]])
         )
     except:
         await query.message.reply_text(
-            get_text(user_id, "custom_amount_prompt"),
+            get_text(user_id, "custom_stars_prompt"),
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_stars")
             ]])
         )
 
-async def send_payment_invoice(query, user_id, amount):
-    """Send payment invoice using Telegram Payments"""
+async def start_custom_ton_amount(query, context, user_id):
+    """Start custom TON amount input"""
+    context.user_data['waiting_custom_ton'] = True
+    
     try:
+        await query.edit_message_text(
+            get_text(user_id, "custom_ton_prompt"),
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_ton")
+            ]])
+        )
+    except:
+        await query.message.reply_text(
+            get_text(user_id, "custom_ton_prompt"),
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_ton")
+            ]])
+        )
+
+async def send_stars_payment_invoice(update, context, user_id, amount):
+    """Send Telegram Stars payment invoice"""
+    try:
+        from payment_system import stars_payment
+        
         user = db.get_user(user_id)
         lang = user.get('lang', 'ru') if user else 'ru'
         
-        # Payment description based on amount
-        if amount == 5:
-            title = "☕ Coffee Support" if lang == 'en' else "☕ Поддержка кофе"
-            description = "Thank you for buying us coffee!" if lang == 'en' else "Спасибо за кофе!"
-        elif amount == 10:
-            title = "🍕 Pizza Fund" if lang == 'en' else "🍕 Фонд пиццы"
-            description = "Help us fuel our development!" if lang == 'en' else "Помогите нам в разработке!"
-        elif amount == 25:
-            title = "💝 Generous Support" if lang == 'en' else "💝 Щедрая поддержка"
-            description = "Your generous contribution!" if lang == 'en' else "Ваша щедрая поддержка!"
-        elif amount == 50:
-            title = "🌟 Super Supporter" if lang == 'en' else "🌟 Супер поддержка"
-            description = "Amazing support for Alt3r!" if lang == 'en' else "Потрясающая поддержка Alt3r!"
+        # Create title and description based on amount
+        title = get_text(user_id, "stars_payment_description")
+        description = f"⭐ {amount} Stars - {get_text(user_id, 'support_title')}"
+        
+        # Create invoice data
+        invoice_data = await stars_payment.create_stars_invoice(
+            user_id, amount, title, description
+        )
+        
+        if invoice_data:
+            # Send the invoice
+            success = await stars_payment.send_stars_invoice(update, context, invoice_data)
+            if not success:
+                await update.callback_query.edit_message_text(
+                    get_text(user_id, "payment_failed"),
+                    reply_markup=InlineKeyboardMarkup([[
+                        InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_stars")
+                    ]])
+                )
         else:
-            title = f"💰 Custom Support - ${amount}" if lang == 'en' else f"💰 Произвольная поддержка - ${amount}"
-            description = f"Custom support amount: ${amount}" if lang == 'en' else f"Произвольная сумма поддержки: ${amount}"
-        
-        # Create price list (amount in smallest currency unit, e.g., cents for USD)
-        prices = [{"label": title, "amount": amount * 100}]  # Convert to cents
-        
-        # Note: You need to set up payment provider and get provider_token
-        # For demo purposes, I'll show the structure
-        try:
-            # This would require a real payment provider token
-            # await query.message.reply_invoice(
-            #     title=title,
-            #     description=description,
-            #     payload=f"support_{amount}_{user_id}",
-            #     provider_token="YOUR_PAYMENT_PROVIDER_TOKEN",  # You need to get this from BotFather
-            #     currency="USD",
-            #     prices=prices,
-            #     start_parameter="support_payment"
-            # )
-            
-            # For now, show a message explaining how to set up payments
-            payment_info = ""
-            if lang == 'en':
-                payment_info = f"💳 Payment Setup Required\n\n"
-                payment_info += f"To enable ${amount} payments, you need to:\n"
-                payment_info += f"1. Contact @BotFather\n"
-                payment_info += f"2. Use /mybots → Your Bot → Payments\n"
-                payment_info += f"3. Connect a payment provider (Stripe, PayPal, etc.)\n"
-                payment_info += f"4. Get the provider token\n\n"
-                payment_info += f"Once configured, users can pay directly in Telegram!"
-            else:
-                payment_info = f"💳 Требуется настройка платежей\n\n"
-                payment_info += f"Для активации платежей ${amount} нужно:\n"
-                payment_info += f"1. Написать @BotFather\n"
-                payment_info += f"2. Использовать /mybots → Ваш бот → Payments\n"
-                payment_info += f"3. Подключить платежную систему (Stripe, PayPal и др.)\n"
-                payment_info += f"4. Получить токен провайдера\n\n"
-                payment_info += f"После настройки пользователи смогут платить прямо в Telegram!"
-            
-            await query.edit_message_text(
-                payment_info,
-                reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
-                ]])
-            )
-            
-        except Exception as payment_error:
-            logger.error(f"Payment error: {payment_error}")
-            await query.edit_message_text(
+            await update.callback_query.edit_message_text(
                 get_text(user_id, "payment_failed"),
                 reply_markup=InlineKeyboardMarkup([[
-                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
+                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_stars")
                 ]])
             )
             
     except Exception as e:
-        logger.error(f"Error sending payment invoice: {e}")
+        logger.error(f"Error sending Stars payment invoice: {e}")
+        await update.callback_query.edit_message_text(
+            get_text(user_id, "payment_failed"),
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_stars")
+            ]])
+        )
+
+async def send_ton_payment_invoice(query, user_id, amount):
+    """Send TON payment invoice"""
+    try:
+        from payment_system import ton_payment
+        
+        # Create TON payment invoice
+        invoice_data = await ton_payment.create_ton_invoice(user_id, amount)
+        
+        if invoice_data:
+            text = f"{get_text(user_id, 'generate_ton_invoice')}\n\n"
+            text += f"{get_text(user_id, 'ton_payment_address')}\n"
+            text += f"`{invoice_data['wallet_address']}`\n\n"
+            text += f"💰 Amount: {amount} TON\n\n"
+            text += f"{get_text(user_id, 'ton_payment_comment')}\n"
+            text += f"`{invoice_data['comment']}`\n\n"
+            text += f"{get_text(user_id, 'ton_payment_wait')}"
+            
+            keyboard = [
+                [InlineKeyboardButton("🔄 Check Payment", callback_data=f"check_ton_{invoice_data['payment_id']}")],
+                [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_ton")]
+            ]
+            
+            await query.edit_message_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+        else:
+            await query.edit_message_text(
+                get_text(user_id, "payment_failed"),
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_ton")
+                ]])
+            )
+            
+    except Exception as e:
+        logger.error(f"Error sending TON payment invoice: {e}")
         await query.edit_message_text(
             get_text(user_id, "payment_failed"),
             reply_markup=InlineKeyboardMarkup([[
-                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="support_project")
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_ton")
+            ]])
+        )
+
+async def check_ton_payment_status(query, user_id, payment_id):
+    """Check TON payment status"""
+    try:
+        from payment_system import ton_payment
+        
+        # Verify payment
+        payment_verified = await ton_payment.verify_and_complete_payment(user_id, payment_id)
+        
+        if payment_verified:
+            await query.edit_message_text(
+                get_text(user_id, "payment_success"),
+                reply_markup=InlineKeyboardMarkup([[
+                    InlineKeyboardButton(get_text(user_id, "back_to_menu"), callback_data="back_to_menu")
+                ]])
+            )
+        else:
+            # Payment not yet received
+            text = f"{get_text(user_id, 'ton_payment_wait')}\n\n"
+            text += "Please make sure you:\n"
+            text += "1. Sent the exact amount\n"
+            text += "2. Included the correct comment\n"
+            text += "3. Allow a few minutes for confirmation"
+            
+            keyboard = [
+                [InlineKeyboardButton("🔄 Check Again", callback_data=f"check_ton_{payment_id}")],
+                [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_ton")]
+            ]
+            
+            await query.edit_message_text(
+                text,
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            
+    except Exception as e:
+        logger.error(f"Error checking TON payment: {e}")
+        await query.edit_message_text(
+            get_text(user_id, "payment_failed"),
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_ton")
             ]])
         )
 
@@ -7944,10 +8089,11 @@ async def main():
     application.add_handler(CommandHandler("help", show_help_command))
     application.add_handler(CommandHandler("debug", debug_profiles))
     
-    # Add payment handlers
+    # Add payment handlers for Telegram Stars and TON
     from telegram.ext import PreCheckoutQueryHandler
-    application.add_handler(PreCheckoutQueryHandler(handle_pre_checkout_query))
-    application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, handle_successful_payment))
+    from payment_system import stars_payment
+    application.add_handler(PreCheckoutQueryHandler(stars_payment.handle_pre_checkout_query))
+    application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, stars_payment.handle_successful_payment))
     
     application.add_handler(CallbackQueryHandler(handle_callback))
     application.add_handler(MessageHandler(filters.ALL, handle_message))

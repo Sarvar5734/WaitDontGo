@@ -7,3 +7,6 @@ aiohttp
 psutil
 telegram
 tinydb
+aiohttp
+pytoniq
+requests

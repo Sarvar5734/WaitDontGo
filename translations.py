@@ -76,18 +76,33 @@ TEXTS = {
         
         # === PAYMENT & SUPPORT ===
         "support_title": "💖 Support Alt3r Project",
-        "support_description": "Help us improve Alt3r and create better connections for the neurodivergent community!",
-        "support_amounts": "Choose your support amount:",
-        "support_5": "☕ Buy us coffee - $5",
-        "support_10": "🍕 Pizza fund - $10", 
-        "support_25": "💝 Generous support - $25",
-        "support_50": "🌟 Super supporter - $50",
-        "support_custom": "💰 Custom amount",
+        "support_description": "Help us improve Alt3r and create better connections for the neurodivergent community!\n\n💫 We now accept Telegram Stars and TON payments!",
+        "support_amounts": "Choose your support method:",
+        "support_stars_title": "⭐ Telegram Stars",
+        "support_ton_title": "💎 TON Cryptocurrency",
+        "support_stars_50": "⭐ 50 Stars - Coffee support",
+        "support_stars_100": "⭐ 100 Stars - Pizza fund", 
+        "support_stars_250": "⭐ 250 Stars - Generous support",
+        "support_stars_500": "⭐ 500 Stars - Super supporter",
+        "support_ton_1": "💎 1 TON - Basic support",
+        "support_ton_5": "💎 5 TON - Strong support",
+        "support_ton_10": "💎 10 TON - Major support",
+        "support_custom_stars": "⭐ Custom Stars amount",
+        "support_custom_ton": "💎 Custom TON amount",
         "payment_success": "🎉 Thank you for your support! Your contribution helps us build a better platform for neurodivergent connections.",
         "payment_cancelled": "❌ Payment was cancelled. No worries - you can support us anytime!",
         "payment_failed": "❌ Payment failed. Please try again or contact support.",
-        "custom_amount_prompt": "💰 Enter custom amount in USD (minimum $1):",
-        "invalid_amount": "❌ Please enter a valid amount (minimum $1)",
+        "custom_stars_prompt": "⭐ Enter Stars amount (minimum 10 Stars):",
+        "custom_ton_prompt": "💎 Enter TON amount (minimum 0.1 TON):",
+        "invalid_stars_amount": "❌ Please enter a valid Stars amount (minimum 10)",
+        "invalid_ton_amount": "❌ Please enter a valid TON amount (minimum 0.1)",
+        "stars_payment_description": "Support Alt3r with Telegram Stars",
+        "ton_payment_description": "Support Alt3r with TON cryptocurrency",
+        "generate_ton_invoice": "💎 Generate TON Payment",
+        "ton_payment_address": "Send TON to this address:",
+        "ton_payment_comment": "Include this comment:",
+        "ton_payment_wait": "⏳ Waiting for payment confirmation...",
+        "ton_payment_verified": "✅ TON payment verified!",
         
         # === DESCRIPTIVE TEXTS ===
         "years_old": "years old",
@@ -159,18 +174,33 @@ TEXTS = {
         
         # === PAYMENT & SUPPORT ===
         "support_title": "💖 Поддержка проекта Alt3r",
-        "support_description": "Помогите нам улучшить Alt3r и создать лучшие связи для нейроразнообразного сообщества!",
-        "support_amounts": "Выберите сумму поддержки:",
-        "support_5": "☕ Купить нам кофе - $5",
-        "support_10": "🍕 Фонд пиццы - $10",
-        "support_25": "💝 Щедрая поддержка - $25", 
-        "support_50": "🌟 Супер поддержка - $50",
-        "support_custom": "💰 Произвольная сумма",
+        "support_description": "Помогите нам улучшить Alt3r и создать лучшие связи для нейроразнообразного сообщества!\n\n💫 Теперь мы принимаем Telegram Stars и TON!",
+        "support_amounts": "Выберите способ поддержки:",
+        "support_stars_title": "⭐ Telegram Stars",
+        "support_ton_title": "💎 TON Криптовалюта",
+        "support_stars_50": "⭐ 50 Stars - Поддержка кофе",
+        "support_stars_100": "⭐ 100 Stars - Фонд пиццы", 
+        "support_stars_250": "⭐ 250 Stars - Щедрая поддержка",
+        "support_stars_500": "⭐ 500 Stars - Супер поддержка",
+        "support_ton_1": "💎 1 TON - Базовая поддержка",
+        "support_ton_5": "💎 5 TON - Сильная поддержка",
+        "support_ton_10": "💎 10 TON - Крупная поддержка",
+        "support_custom_stars": "⭐ Произвольная сумма Stars",
+        "support_custom_ton": "💎 Произвольная сумма TON",
         "payment_success": "🎉 Спасибо за вашу поддержку! Ваш вклад помогает нам строить лучшую платформу для нейроразнообразных связей.",
         "payment_cancelled": "❌ Платеж отменен. Не беспокойтесь - вы можете поддержать нас в любое время!",
         "payment_failed": "❌ Платеж не прошел. Пожалуйста, попробуйте снова или свяжитесь с поддержкой.",
-        "custom_amount_prompt": "💰 Введите произвольную сумму в USD (минимум $1):",
-        "invalid_amount": "❌ Пожалуйста, введите корректную сумму (минимум $1)",
+        "custom_stars_prompt": "⭐ Введите количество Stars (минимум 10 Stars):",
+        "custom_ton_prompt": "💎 Введите сумму TON (минимум 0.1 TON):",
+        "invalid_stars_amount": "❌ Пожалуйста, введите корректное количество Stars (минимум 10)",
+        "invalid_ton_amount": "❌ Пожалуйста, введите корректную сумму TON (минимум 0.1)",
+        "stars_payment_description": "Поддержка Alt3r через Telegram Stars",
+        "ton_payment_description": "Поддержка Alt3r через TON криптовалюту",
+        "generate_ton_invoice": "💎 Сгенерировать TON платеж",
+        "ton_payment_address": "Отправьте TON на этот адрес:",
+        "ton_payment_comment": "Включите этот комментарий:",
+        "ton_payment_wait": "⏳ Ожидание подтверждения платежа...",
+        "ton_payment_verified": "✅ TON платеж подтвержден!",
         
         # === DESCRIPTIVE TEXTS ===
         "years_old": "лет",
@@ -305,7 +335,7 @@ def add_translation(language: str, key: str, text: str) -> bool:
     except Exception:
         return False
 
-def get_translation_coverage(language: str) -> Dict[str, Any]:
+def get_translation_coverage(language: str) -> dict:
     """
     Get translation coverage statistics for a language.
     

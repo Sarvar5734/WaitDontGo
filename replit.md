@@ -10,6 +10,19 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (August 2025)
 
+**Payment System Integration (August 15, 2025):**
+- Completely replaced existing payment infrastructure with Telegram Stars and TON cryptocurrency
+- Implemented comprehensive payment system supporting both Telegram Stars and TON payments
+- Added new payment_system.py module with full Stars and TON integration
+- Updated translations.py with payment-specific messaging in English and Russian
+- Integrated TON Center API for transaction verification and monitoring
+- Added payment configuration system with environment variable support
+- Configured pre-checkout query handlers and successful payment processing
+- Replaced legacy payment handlers with modern Telegram Stars API integration
+- Added custom amount input handling for both payment methods
+- Created payment validation and error handling for robust user experience
+- Updated environment configuration to support TON wallet and API credentials
+
 **Security & Access Control Fix (August 15, 2025):**
 - Fixed admin panel visibility issue where regular users could see admin controls
 - Cleared ADMIN_USER_IDS list to properly restrict admin access
@@ -69,7 +82,9 @@ Preferred communication style: Simple, everyday language.
 The bot follows a modular design, separating concerns into distinct modules:
 - **Main Entry Point (`main.py`)**: Configures and starts the bot, handles registration of handlers, and manages error handling.
 - **Database Layer (`models.py`, `database_manager.py`, `db_operations.py`)**: Manages interactions with a pure PostgreSQL database using SQLAlchemy ORM for User, Feedback, and AISession models. It supports full CRUD operations, advanced querying, indexing, and is designed for scalability to support 10,000+ concurrent users. JSON fields are used for arrays like photos, likes, and traits. Enhanced with city_slug column for consistent location matching and coordinate storage for distance calculations.
-- **Translation System (`translations.py`)**: Centralizes all bot text in a `TEXTS` dictionary, providing bilingual support for English and Russian, including comprehensive neurodivergent trait definitions in multiple languages. It includes helper functions for language detection and text retrieval.
+- **Translation System (`translations.py`)**: Centralizes all bot text in a `TEXTS` dictionary, providing bilingual support for English and Russian, including comprehensive neurodivergent trait definitions in multiple languages. Enhanced with payment-specific messaging for Telegram Stars and TON payments. It includes helper functions for language detection and text retrieval.
+- **Payment System (`payment_system.py`)**: Comprehensive payment integration module supporting Telegram Stars and TON cryptocurrency payments. Handles invoice creation, payment verification, transaction monitoring via TON Center API, and payment status tracking. Includes validation, error handling, and database integration for payment records.
+- **Payment Configuration (`payment_config.py`)**: Centralized configuration management for payment systems, including TON wallet setup, API credentials, and environment validation with helpful setup instructions.
 - **Handler Modules (`handlers.py`)**: Contains conversation handlers for user registration, the main menu system, profile management (viewing, editing), and dating features (like/pass, match detection, profile browsing), along with navigation elements like back buttons.
 - **Keep-Alive Service (`keep_alive.py`)**: A custom HTTP server that prevents the bot from going idle on hosting platforms and integrates with logging.
 - **Process Management (`process_manager.py`)**: Robust system to prevent multiple bot instances from running simultaneously. Uses PID files, process monitoring, and automatic cleanup to ensure only one bot runs at a time. Includes signal handlers for graceful shutdown and automatic killing of conflicting processes.
