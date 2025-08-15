@@ -2148,12 +2148,7 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
             # Show loading message
             user = db.get_user(user_id)
-            if user and hasattr(user, 'lang'):
-                lang = user.lang or 'ru'
-            elif user and isinstance(user, dict):
-                lang = user.get('lang', 'ru')
-            else:
-                lang = 'ru'
+            lang = user.get('lang', 'ru') if user else 'ru'
             
             if lang == 'en':
                 loading_msg = "📍 Detecting your city from GPS coordinates..."
@@ -2210,7 +2205,7 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
             logger.error(f"Error processing GPS location: {e}")
 
             user = db.get_user(user_id)
-            lang = user.lang if user else 'ru'
+            lang = user.get('lang', 'ru') if user else 'ru'
 
             error_msg = get_text(user_id, "gps_processing_error")
 
@@ -2243,7 +2238,7 @@ async def handle_city(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     # Handle manual city text input - NEW ENHANCED VERSION
     elif update.message.text and update.message.text not in ["📍 Поделиться геолокацией", "📍 Share GPS location", "📍 Попробовать еще раз", "📍 Try again", "📍 Использовать GPS", "📍 Use GPS"]:
         user = db.get_user(user_id)
-        lang = user.lang if user else 'ru'
+        lang = user.get('lang', 'ru') if user else 'ru'
         
         # Show processing message for manual city input
         if lang == 'en':
@@ -2345,7 +2340,7 @@ async def handle_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True, resize_keyboard=True)
         
         user = db.get_user(user_id)
-        lang = user.lang if user else 'ru'
+        lang = user.get('lang', 'ru') if user else 'ru'
 
         if lang == 'en':
             location_text = "📍 Share your location:\n\nYou can either share your GPS location or enter your city manually."
