@@ -7835,18 +7835,39 @@ async def send_ton_payment_invoice(query, user_id, amount, context=None):
         invoice_data = await ton_payment.create_ton_invoice(user_id, amount, context)
         
         if invoice_data:
-            text = f"{get_text(user_id, 'generate_ton_invoice')}\n\n"
-            text += f"{get_text(user_id, 'ton_payment_address')}\n"
-            text += f"`{invoice_data['wallet_address']}`\n\n"
-            text += f"💰 Amount: {amount} TON\n\n"
-            text += f"{get_text(user_id, 'ton_payment_comment')}\n"
-            text += f"`{invoice_data['comment']}`\n\n"
-            text += f"{get_text(user_id, 'ton_payment_wait')}"
+            # Get user to determine language
+            user = db.get_user(user_id)
+            lang = user.lang if user and user.lang else 'ru'
             
-            keyboard = [
-                [InlineKeyboardButton("🔄 Check Payment", callback_data=f"check_ton_{invoice_data['payment_id']}")],
-                [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="payment_method_ton")]
-            ]
+            # Create properly formatted message based on language
+            if lang == 'en':
+                text = "💎 TON Payment Details\n\n"
+                text += "📍 Send TON to this address:\n"
+                text += f"`{invoice_data['wallet_address']}`\n\n"
+                text += f"💰 Amount: {amount} TON\n\n"
+                text += "💬 Include this comment:\n"
+                text += f"`{invoice_data['comment']}`\n\n"
+                text += "⏳ Waiting for payment confirmation..."
+            else:
+                text = "💎 Детали TON платежа\n\n"
+                text += "📍 Отправьте TON на этот адрес:\n"
+                text += f"`{invoice_data['wallet_address']}`\n\n"
+                text += f"💰 Сумма: {amount} TON\n\n"
+                text += "💬 Включите этот комментарий:\n"
+                text += f"`{invoice_data['comment']}`\n\n"
+                text += "⏳ Ожидание подтверждения платежа..."
+            
+            # Create keyboard with proper language
+            if lang == 'en':
+                keyboard = [
+                    [InlineKeyboardButton("🔄 Check Payment", callback_data=f"check_ton_{invoice_data['payment_id']}")],
+                    [InlineKeyboardButton("🔙 Back", callback_data="payment_method_ton")]
+                ]
+            else:
+                keyboard = [
+                    [InlineKeyboardButton("🔄 Проверить платеж", callback_data=f"check_ton_{invoice_data['payment_id']}")],
+                    [InlineKeyboardButton("🔙 Назад", callback_data="payment_method_ton")]
+                ]
             
             await query.edit_message_text(
                 text,

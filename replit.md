@@ -25,7 +25,8 @@ Preferred communication style: Simple, everyday language.
 - ✅ Fixed database schema compatibility issue (lang vs language column)
 - ✅ Created comprehensive PAYMENT_SETUP_GUIDE.md with setup instructions
 - ✅ Bot successfully starts and processes payment callbacks without errors
-- ✅ Payment integration fully tested and operational
+- ✅ Fixed TON payment message formatting (replaced raw translation keys with proper localized text)
+- ✅ Payment integration fully tested and operational with proper multilingual support
 
 **Security & Access Control Fix (August 15, 2025):**
 - Fixed admin panel visibility issue where regular users could see admin controls
