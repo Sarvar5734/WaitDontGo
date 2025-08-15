@@ -30,40 +30,40 @@ WOMEN_PHOTOS = [
 
 # Realistic names and data
 FEMALE_NAMES = [
-    "Emma", "Olivia", "Ava", "Isabella", "Sophia", "Charlotte", "Mia", "Amelia",
-    "Harper", "Evelyn", "Abigail", "Emily", "Elizabeth", "Mila", "Ella", "Avery",
-    "Sofia", "Camila", "Aria", "Scarlett", "Victoria", "Madison", "Luna", "Grace",
-    "Chloe", "Penelope", "Layla", "Riley", "Zoey", "Nora", "Lily", "Eleanor"
+    "Анна", "Мария", "Елена", "Ольга", "Татьяна", "Наталья", "Светлана", "Ирина",
+    "Екатерина", "Юлия", "Людмила", "Галина", "Валентина", "Нина", "Любовь", "Вера",
+    "Надежда", "Алина", "Виктория", "Дарья", "Алёна", "Кристина", "Полина", "Анастасия",
+    "Софья", "Варвара", "Милана", "Ксения", "Александра", "Арина", "Валерия", "Вероника"
 ]
 
 MALE_NAMES = [
-    "Liam", "Noah", "Oliver", "Elijah", "William", "James", "Benjamin", "Lucas",
-    "Henry", "Alexander", "Mason", "Michael", "Ethan", "Daniel", "Jacob", "Logan",
-    "Jackson", "Levi", "Sebastian", "Mateo", "Jack", "Owen", "Theodore", "Aiden",
-    "Samuel", "Joseph", "John", "David", "Wyatt", "Matthew", "Luke", "Asher"
+    "Александр", "Сергей", "Андрей", "Алексей", "Дмитрий", "Максим", "Иван", "Михаил",
+    "Владимир", "Николай", "Денис", "Евгений", "Артём", "Игорь", "Роман", "Антон",
+    "Кирилл", "Павел", "Олег", "Виталий", "Константин", "Даниил", "Егор", "Вадим",
+    "Станислав", "Владислав", "Тимур", "Георгий", "Руслан", "Глеб", "Матвей", "Никита"
 ]
 
 CITIES_WITH_COORDS = [
-    ("New York", "new-york", 40.7128, -74.0060),
-    ("Los Angeles", "los-angeles", 34.0522, -118.2437),
-    ("Chicago", "chicago", 41.8781, -87.6298),
-    ("Houston", "houston", 29.7604, -95.3698),
-    ("Philadelphia", "philadelphia", 39.9526, -75.1652),
-    ("Phoenix", "phoenix", 33.4484, -112.0740),
-    ("San Antonio", "san-antonio", 29.4241, -98.4936),
-    ("San Diego", "san-diego", 32.7157, -117.1611),
-    ("Dallas", "dallas", 32.7767, -96.7970),
-    ("San Jose", "san-jose", 37.3382, -121.8863),
-    ("Austin", "austin", 30.2672, -97.7431),
-    ("Jacksonville", "jacksonville", 30.3322, -81.6557),
-    ("Fort Worth", "fort-worth", 32.7555, -97.3308),
-    ("Columbus", "columbus", 39.9612, -82.9988),
-    ("Charlotte", "charlotte", 35.2271, -80.8431),
-    ("San Francisco", "san-francisco", 37.7749, -122.4194),
-    ("Indianapolis", "indianapolis", 39.7684, -86.1581),
-    ("Seattle", "seattle", 47.6062, -122.3321),
-    ("Denver", "denver", 39.7392, -104.9903),
-    ("Boston", "boston", 42.3601, -71.0589)
+    ("Москва", "moscow", 55.7558, 37.6176),
+    ("Санкт-Петербург", "st-petersburg", 59.9311, 30.3609),
+    ("Новосибирск", "novosibirsk", 55.0084, 82.9357),
+    ("Екатеринбург", "yekaterinburg", 56.8431, 60.6454),
+    ("Нижний Новгород", "nizhny-novgorod", 56.2965, 43.9361),
+    ("Казань", "kazan", 55.8304, 49.0661),
+    ("Челябинск", "chelyabinsk", 55.1644, 61.4368),
+    ("Омск", "omsk", 54.9885, 73.3242),
+    ("Самара", "samara", 53.2001, 50.15),
+    ("Ростов-на-Дону", "rostov-on-don", 47.2357, 39.7015),
+    ("Уфа", "ufa", 54.7388, 55.9721),
+    ("Красноярск", "krasnoyarsk", 56.0184, 92.8672),
+    ("Воронеж", "voronezh", 51.6720, 39.1843),
+    ("Пермь", "perm", 58.0105, 56.2502),
+    ("Волгоград", "volgograd", 48.7080, 44.5133),
+    ("Краснодар", "krasnodar", 45.0328, 38.9769),
+    ("Саратов", "saratov", 51.5924, 46.0037),
+    ("Тюмень", "tyumen", 57.1522, 65.5272),
+    ("Тольятти", "tolyatti", 53.5303, 49.3461),
+    ("Ижевск", "izhevsk", 56.8527, 53.2041)
 ]
 
 # Neurodivergent traits available in the system
@@ -74,42 +74,42 @@ ND_TRAITS = [
     "stimming", "social_anxiety", "perfectionism"
 ]
 
-# Bio templates for different personalities
+# Bio templates for different personalities (in Russian)
 BIO_TEMPLATES = {
     "creative": [
-        "Artist at heart, finding beauty in everyday moments. Love creating and connecting with like-minded souls.",
-        "Creative spirit who sees the world differently. Looking for someone who appreciates art, music, and deep conversations.",
-        "Photographer and dreamer. I capture moments that others might miss. Let's explore the world together.",
-        "Writer by day, stargazer by night. I believe every person has a story worth telling.",
-        "Musician seeking harmony in life and love. I find peace in melodies and meaningful connections."
+        "Творческая душа, которая находит красоту в обычных моментах. Люблю создавать и общаться с единомышленниками.",
+        "Креативный человек, который видит мир по-особенному. Ищу того, кто ценит искусство, музыку и глубокие разговоры.",
+        "Фотограф и мечтатель. Ловлю моменты, которые другие могут пропустить. Давайте исследовать мир вместе.",
+        "Пишу днём, любуюсь звёздами ночью. Верю, что у каждого человека есть история, которую стоит рассказать.",
+        "Музыкант в поисках гармонии в жизни и любви. Нахожу покой в мелодиях и значимых связях."
     ],
     "introverted": [
-        "Quiet soul who loves books, cozy evenings, and genuine conversations over small talk.",
-        "Introvert who recharges in nature. Looking for someone who understands that silence can be comfortable.",
-        "Homebody who finds joy in simple pleasures. Movie nights and deep talks are my love language.",
-        "Prefer quality over quantity in all things, especially relationships. Let's take things slow and steady.",
-        "Gentle spirit who appreciates the little things. Seeking someone who values authenticity over popularity."
+        "Тихая душа, которая любит книги, уютные вечера и искренние разговоры больше светской болтовни.",
+        "Интроверт, который восстанавливается на природе. Ищу того, кто понимает, что молчание может быть комфортным.",
+        "Домосед, который находит радость в простых удовольствиях. Вечера кино и глубокие беседы - мой язык любви.",
+        "Предпочитаю качество количеству во всём, особенно в отношениях. Давайте не будем торопиться.",
+        "Нежная душа, которая ценит мелочи. Ищу того, кто ценит искренность больше популярности."
     ],
     "adventurous": [
-        "Adventure seeker with a curious mind. Always ready to explore new places and try new experiences.",
-        "Wanderlust in my veins. Looking for a travel buddy and life partner rolled into one.",
-        "Outdoor enthusiast who finds peace in nature. Hiking, camping, and stargazing are my therapy.",
-        "Spontaneous spirit who believes life is meant to be lived fully. Let's make memories together.",
-        "Explorer of both the world and the human experience. Seeking someone equally passionate about growth."
+        "Искатель приключений с любопытным умом. Всегда готова исследовать новые места и пробовать новое.",
+        "Страсть к путешествиям в моих венах. Ищу попутчика и спутника жизни в одном лице.",
+        "Любитель активного отдыха, который находит покой на природе. Походы, кемпинг и созерцание звёзд - моя терапия.",
+        "Спонтанная душа, которая верит, что жизнь нужно проживать полно. Давайте создавать воспоминания вместе.",
+        "Исследователь мира и человеческого опыта. Ищу того, кто так же страстно стремится к росту."
     ],
     "intellectual": [
-        "Philosophy major who loves deep conversations about life, the universe, and everything in between.",
-        "Curious mind always learning something new. Looking for intellectual stimulation and emotional connection.",
-        "Researcher by profession, wonderer by nature. I find patterns fascinating and people even more so.",
-        "Love discussing ideas, theories, and possibilities. Seeking someone who enjoys mental adventures.",
-        "Lifelong learner who believes knowledge is meant to be shared. Let's teach each other something new."
+        "Выпускница философского факультета, которая любит глубокие разговоры о жизни, вселенной и всём остальном.",
+        "Любопытный ум, всегда изучающий что-то новое. Ищу интеллектуальную стимуляцию и эмоциональную связь.",
+        "Исследователь по профессии, мечтатель по натуре. Нахожу закономерности увлекательными, а людей ещё более интересными.",
+        "Люблю обсуждать идеи, теории и возможности. Ищу того, кто наслаждается умственными приключениями.",
+        "Студент на всю жизнь, который верит, что знания нужно делить. Давайте научим друг друга чему-то новому."
     ],
     "empathetic": [
-        "Highly sensitive person who feels deeply. Looking for someone who appreciates emotional intelligence.",
-        "Empath seeking genuine connection. I believe understanding each other is the foundation of love.",
-        "Caregiver at heart who finds purpose in helping others. Seeking someone with a kind soul.",
-        "Believe in the power of vulnerability and authentic communication. Let's be real with each other.",
-        "Gentle soul who sees the good in everyone. Looking for someone who values compassion and understanding."
+        "Высокочувствительная личность, которая глубоко чувствует. Ищу того, кто ценит эмоциональный интеллект.",
+        "Эмпат в поисках искренней связи. Верю, что понимание друг друга - основа любви.",
+        "Заботливая душа, которая находит смысл в помощи другим. Ищу человека с доброй душой.",
+        "Верю в силу уязвимости и искреннего общения. Давайте будем настоящими друг с другом.",
+        "Нежная душа, которая видит хорошее в каждом. Ищу того, кто ценит сострадание и понимание."
     ]
 }
 
@@ -117,27 +117,27 @@ def generate_bio(personality_type, nd_traits):
     """Generate a realistic bio based on personality and traits"""
     base_bio = random.choice(BIO_TEMPLATES[personality_type])
     
-    # Add trait-specific elements
+    # Add trait-specific elements (in Russian)
     trait_additions = []
     if "adhd" in nd_traits:
         trait_additions.extend([
-            "ADHD brain means I'm full of energy and ideas!",
-            "My ADHD gives me a unique perspective on the world.",
-            "Hyperactive mind, but I channel it into creativity."
+            "СДВГ-мозг означает, что я полна энергии и идей!",
+            "Мой СДВГ даёт мне уникальный взгляд на мир.",
+            "Гиперактивный ум, но я направляю его на творчество."
         ])
     
     if "autism" in nd_traits:
         trait_additions.extend([
-            "Autistic and proud - I see details others miss.",
-            "My autism helps me appreciate life's patterns and beauty.",
-            "Neurodivergent and looking for understanding connections."
+            "Аутист и горжусь этим - я вижу детали, которые упускают другие.",
+            "Мой аутизм помогает мне ценить закономерности и красоту жизни.",
+            "Нейроотличная и ищу понимающие связи."
         ])
     
     if "anxiety" in nd_traits:
         trait_additions.extend([
-            "Anxiety is part of my journey, but it doesn't define me.",
-            "Learning to manage anxiety while staying true to myself.",
-            "Sensitive soul who needs patience and understanding."
+            "Тревожность - часть моего пути, но она меня не определяет.",
+            "Учусь справляться с тревогой, оставаясь собой.",
+            "Чувствительная душа, которой нужны терпение и понимание."
         ])
     
     # Combine base bio with trait-specific addition
@@ -206,7 +206,7 @@ def create_fake_profile(user_id, name, gender, photos=None):
         'photos': photos or [],
         'nd_traits': nd_traits,
         'seeking_traits': seeking_traits,
-        'lang': random.choice(['en', 'ru']),
+        'lang': 'ru',
         'created_at': created_at,
         'last_active': last_active,
         'likes': [],
