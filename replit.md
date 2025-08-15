@@ -11,15 +11,14 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes (August 2025)
 
 **Russian Profile Population - COMPLETED (August 15, 2025):**
-- ✅ Created 55 authentic Russian profiles for testing and demonstration
-- ✅ 30 female profiles with provided photos and Russian names (Анна, Мария, Елена, etc.)
+- ✅ Created authentic Russian profiles for testing and demonstration
+- ✅ **FINAL: 12 female profiles with unique photos (1:1 photo-to-profile ratio)**
 - ✅ 25 male profiles with Russian names (Александр, Сергей, Андрей, etc.)
 - ✅ All profiles use major Russian cities (Москва, Санкт-Петербург, Новосибирск, etc.)
 - ✅ Russian language bios with authentic personality types and neurodivergent traits
 - ✅ Realistic interactions between profiles (likes, mutual connections)
 - ✅ Database now contains culturally appropriate content for Russian users
-- ✅ **UPDATED: Each female profile now has a unique photo (12 total photos for 30 profiles)**
-- ✅ **COMPLETED: Eliminated duplicate photos - all profiles use distinct images in rotation**
+- ✅ **COMPLETED: Perfect 1:1 ratio - exactly 12 photos for 12 female profiles**
 - ✅ **UPDATED: All fake profile ages now 26 or younger (range: 18-26 years old)**
 
 ## Recent Changes (August 2025)
