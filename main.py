@@ -3037,10 +3037,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Clear essential profile fields directly in the database to trigger registration flow
             try:
                 from database_manager import db_manager
+                from models import User
                 
                 # Reset critical profile fields to NULL/empty to force re-registration
                 session = db_manager.get_session()
-                user_obj = session.query(db_manager.User).filter_by(user_id=user_id).first()
+                user_obj = session.query(User).filter_by(user_id=user_id).first()
                 if user_obj:
                     user_obj.name = None
                     user_obj.age = None  
