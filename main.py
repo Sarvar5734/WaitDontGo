@@ -2685,6 +2685,13 @@ async def save_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{photos_saved}\n\n{get_text(user_id, 'profile_saved')}",
             reply_markup=get_main_menu(user_id)
         )
+        
+        # Remove any leftover reply keyboard buttons
+        await context.bot.send_message(
+            chat_id=user_id,
+            text="",
+            reply_markup=ReplyKeyboardRemove()
+        )
 
         if context.user_data:
             context.user_data.clear()  # This will also clear the 'in_conversation' flag
