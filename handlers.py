@@ -383,6 +383,13 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         get_text(user_id, 'main_menu'),
         reply_markup=reply_markup
     )
+    
+    # Remove any leftover reply keyboard buttons
+    await context.bot.send_message(
+        chat_id=user_id,
+        text="",
+        reply_markup=ReplyKeyboardRemove()
+    )
 
 async def show_main_menu_from_callback(query, context: ContextTypes.DEFAULT_TYPE):
     """Show main menu from a callback query (for inline updates)."""
@@ -411,6 +418,13 @@ async def show_main_menu_from_callback(query, context: ContextTypes.DEFAULT_TYPE
             text=get_text(user_id, 'main_menu'),
             reply_markup=reply_markup
         )
+    
+    # Remove any leftover reply keyboard buttons
+    await context.bot.send_message(
+        chat_id=user_id,
+        text="",
+        reply_markup=ReplyKeyboardRemove()
+    )
 
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle main menu button callbacks."""
