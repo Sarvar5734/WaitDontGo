@@ -215,8 +215,8 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     user_id = update.effective_user.id
     
-    if update.message.text and update.message.text == get_text(user_id, 'btn_skip'):
-        # User skipped photos
+    if update.message.text and (update.message.text == get_text(user_id, 'btn_skip') or update.message.text == "✅ Done"):
+        # User skipped photos or clicked Done
         await confirm_profile(update, context)
         return CONFIRM
     
@@ -296,6 +296,13 @@ async def confirm_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(profile_text, reply_markup=reply_markup)
+    
+    # Remove any reply keyboard from previous steps
+    await context.bot.send_message(
+        chat_id=user_id,
+        text="",
+        reply_markup=ReplyKeyboardRemove()
+    )
 
 async def confirm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle profile confirmation callback."""
@@ -329,6 +336,13 @@ async def confirm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await query.edit_message_text(get_text(user_id, 'profile_saved'))
         
+        # Remove the reply keyboard and show main menu
+        await context.bot.send_message(
+            chat_id=user_id,
+            text="",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        
         # Show main menu
         await show_main_menu_from_callback(query, context)
         
@@ -336,6 +350,12 @@ async def confirm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         # User wants to change something - restart registration
         await query.edit_message_text("Let's start over. Send /start to begin again.")
+        # Remove the reply keyboard
+        await context.bot.send_message(
+            chat_id=user_id,
+            text="",
+            reply_markup=ReplyKeyboardRemove()
+        )
         return ConversationHandler.END
 
 # ===== MAIN MENU HANDLERS =====
