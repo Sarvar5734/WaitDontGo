@@ -410,7 +410,7 @@ TEXTS = {
         "error_occurred": "Произошла ошибка. Попробуйте еще раз.",
         "restart_hint": "Используйте /start для перезапуска при необходимости.",
         "age_prompt_error": "Пожалуйста, введите ваш возраст числом.",
-        "age_range_error": "Пожалуйста, введите возраст от 18 до 100 лет.",
+        "age_range_error": "Пожалуйста, введите возраст от 16 до 100 лет.",
         "gender_selection_error": "Пожалуйста, выберите пол из предложенных вариантов.",
         "interest_selection_error": "Пожалуйста, выберите из предложенных вариантов.",
         "location_sharing_error": "Пожалуйста, поделитесь местоположением или введите город вручную.",
@@ -609,7 +609,7 @@ TEXTS = {
         "error_occurred": "An error occurred. Please try again.",
         "restart_hint": "Use /start to restart if needed.",
         "age_prompt_error": "Please enter your age as a number.",
-        "age_range_error": "Please enter age between 18 and 100 years.",
+        "age_range_error": "Please enter age between 16 and 100 years.",
         "gender_selection_error": "Please select gender from the suggested options.",
         "interest_selection_error": "Please select from the suggested options.",
         "location_sharing_error": "Please share your location or enter your city manually.",
@@ -1997,7 +1997,7 @@ async def handle_age(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             return AGE
 
         age = int(age_text)
-        if 18 <= age <= 100:
+        if 15 <= age <= 100:
             context.user_data["age"] = age
             logger.info(f"User {user_id} entered age: {age}")
 
@@ -2757,7 +2757,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data == "profile_settings":
             await show_profile_settings_menu(query, user_id)
         elif data == "feedback":
-            await show_feedback_menu(query, user_id)
+            # Open Telegram channel for feedback
+            await query.edit_message_text(
+                "📝 Обратная связь\n\nПрисоединяйтесь к нашему каналу для обратной связи и обновлений:",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("📢 Alt3r Channel", url="https://t.me/Alt3rchannel")],
+                    [InlineKeyboardButton(get_text(user_id, "back_button"), callback_data="back_to_menu")]
+                ])
+            )
         elif data == "statistics":
             await show_statistics(query, user_id)
         elif data == "support_project":
