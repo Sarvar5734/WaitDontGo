@@ -226,12 +226,11 @@ ND_SYMPTOMS = {
     }
 }
 
-# Import language texts from translations.py (more complete version)
+# Import language texts from translations.py and merge with local ones
 from translations import TEXTS as IMPORTED_TEXTS
-TEXTS = IMPORTED_TEXTS
 
-# Fallback TEXTS for backward compatibility
-TEXTS_FALLBACK = {
+# Local TEXTS with missing keys
+LOCAL_TEXTS = {
     "ru": {
         "welcome": "🧠 Добро пожаловать в Alt3r!\n\nЭто бот для знакомств нейроотличных людей. Здесь вы можете найти понимание, поддержку и настоящие связи с теми, кто разделяет ваш опыт.\n\n✨ Давайте создадим вашу анкету!",
         "main_menu": "🏠 Главное меню",
@@ -690,6 +689,12 @@ TEXTS_FALLBACK = {
         "profile_save_error": "❌ Profile save error. Please try again or contact support.",
         "profile_not_found": "❌ Profile not found. Send /start to create a profile."
     }
+}
+
+# Merge IMPORTED_TEXTS with LOCAL_TEXTS (LOCAL_TEXTS takes priority for missing keys)
+TEXTS = {
+    "ru": {**IMPORTED_TEXTS.get("ru", {}), **LOCAL_TEXTS["ru"]},
+    "en": {**IMPORTED_TEXTS.get("en", {}), **LOCAL_TEXTS["en"]}
 }
 
 def normalize_city(city_input):
