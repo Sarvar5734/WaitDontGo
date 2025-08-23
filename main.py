@@ -226,8 +226,12 @@ ND_SYMPTOMS = {
     }
 }
 
-# Language texts for Alt3r
-TEXTS = {
+# Import language texts from translations.py (more complete version)
+from translations import TEXTS as IMPORTED_TEXTS
+TEXTS = IMPORTED_TEXTS
+
+# Fallback TEXTS for backward compatibility
+TEXTS_FALLBACK = {
     "ru": {
         "welcome": "🧠 Добро пожаловать в Alt3r!\n\nЭто бот для знакомств нейроотличных людей. Здесь вы можете найти понимание, поддержку и настоящие связи с теми, кто разделяет ваш опыт.\n\n✨ Давайте создадим вашу анкету!",
         "main_menu": "🏠 Главное меню",
