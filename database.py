@@ -128,13 +128,15 @@ def save_user_data(user_id: int, data: Dict[str, Any]) -> User:
 def get_potential_matches(user_id: int, limit: int = 50) -> List[User]:
     """
     Get potential matches for a user based on their preferences.
+    Simple filtering: male=boys only, female=girls only, all=everyone
+    Prioritizes: similar traits first, then nearest city
     
     Args:
         user_id: Telegram user ID of the current user
         limit: Maximum number of profiles to return
         
     Returns:
-        List of User instances representing potential matches
+        List of User instances representing potential matches (prioritized)
     """
     with get_db_session() as session:
         current_user = session.query(User).filter(User.user_id == user_id).first()
@@ -142,38 +144,57 @@ def get_potential_matches(user_id: int, limit: int = 50) -> List[User]:
             return []
         
         user_interest = current_user.interest if current_user.interest else 'all'
-        user_gender = current_user.gender if current_user.gender else 'unknown'
+        user_traits = current_user.nd_traits if current_user.nd_traits else []
+        user_city_slug = current_user.city_slug if hasattr(current_user, 'city_slug') else None
         
-        # Find all users except current user (assuming all users with name/age/photos are complete)
-        all_users = session.query(User).filter(
+        # Get all eligible users except current user
+        query = session.query(User).filter(
             User.user_id != user_id,
             User.name.isnot(None),
             User.age.isnot(None),
             User.gender.isnot(None)
-        ).limit(limit).all()
+        )
         
-        # Filter for compatibility
-        potential_matches = []
-        for user in all_users:
-            other_gender = user.gender if user.gender else 'unknown'
-            other_interest = user.interest if user.interest else 'all'
-            
-            # Check compatibility logic
-            compatible = False
-            
-            if user_interest == 'all' or other_interest == 'all':
-                compatible = True
-            elif user_interest == 'girls' and other_gender == 'girl':
-                if other_interest == 'all' or (other_interest == 'boys' and user_gender == 'boy'):
-                    compatible = True
-            elif user_interest == 'boys' and other_gender == 'boy':
-                if other_interest == 'all' or (other_interest == 'girls' and user_gender == 'girl'):
-                    compatible = True
-            
-            if compatible:
-                potential_matches.append(user)
+        # Apply gender filter based on user preference
+        if user_interest == 'boys':
+            # Show ONLY male profiles
+            query = query.filter(User.gender == 'boy')
+        elif user_interest == 'girls':
+            # Show ONLY female profiles  
+            query = query.filter(User.gender == 'girl')
+        # If interest == 'all', show everyone (no filter)
         
-        return potential_matches
+        all_candidates = query.all()
+        
+        # If no matches found for specific preference, fallback to all (only for male/female selections)
+        if not all_candidates and user_interest in ['boys', 'girls']:
+            all_candidates = session.query(User).filter(
+                User.user_id != user_id,
+                User.name.isnot(None),
+                User.age.isnot(None),
+                User.gender.isnot(None)
+            ).all()
+        
+        # Score and sort candidates by: 1) trait similarity, 2) city proximity
+        scored_matches = []
+        for candidate in all_candidates:
+            score = 0
+            
+            # Trait similarity scoring (higher = better match)
+            candidate_traits = candidate.nd_traits if candidate.nd_traits else []
+            common_traits = len(set(user_traits) & set(candidate_traits))
+            score += common_traits * 10  # 10 points per shared trait
+            
+            # City proximity scoring (same city_slug = bonus)
+            if (user_city_slug and hasattr(candidate, 'city_slug') and 
+                candidate.city_slug and candidate.city_slug == user_city_slug):
+                score += 50  # 50 point bonus for same city
+            
+            scored_matches.append((score, candidate))
+        
+        # Sort by score (highest first) and return up to limit
+        scored_matches.sort(key=lambda x: x[0], reverse=True)
+        return [match[1] for match in scored_matches[:limit]]
 
 def update_user_likes(user_id: int, target_user_id: int) -> Dict[str, Any]:
     """

@@ -65,6 +65,14 @@ Preferred communication style: Simple, everyday language.
 - Bot now successfully starts and maintains stable connection to Telegram API
 - Improved application initialization sequence for better reliability
 
+**Enhanced Matching System (August 24, 2025):**
+- ✅ Implemented precise gender filtering: male=boys only, female=girls only, all=everyone
+- ✅ Added intelligent prioritization: similar neurodivergent traits (10pts each) + same city (50pts bonus)
+- ✅ Fixed database schema conflicts between models.py and database.py User definitions
+- ✅ Resolved matching system failures due to non-existent profile_complete/active columns
+- ✅ Added fallback logic: shows all profiles when no gender-specific matches available
+- ✅ Language-independent matching logic works consistently across English/Russian interface
+
 **Critical Bug Fixes & Launch Preparation:**
 - Fixed feedback_db crashes by migrating to PostgreSQL (db_manager.add_feedback)
 - Eliminated double menu sends in main message handler
