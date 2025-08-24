@@ -115,7 +115,7 @@ def save_user_data(user_id: int, data: Dict[str, Any]) -> User:
             for key, value in data.items():
                 if hasattr(user, key):
                     setattr(user, key, value)
-            user.updated_at = datetime.utcnow()
+            setattr(user, 'updated_at', datetime.utcnow())
         else:
             # Create new user
             user = User(user_id=user_id, **data)
@@ -143,9 +143,9 @@ def get_potential_matches(user_id: int, limit: int = 50) -> List[User]:
         if not current_user:
             return []
         
-        user_interest = current_user.interest if current_user.interest else 'all'
-        user_traits = current_user.nd_traits if current_user.nd_traits else []
-        user_city_slug = current_user.city_slug if hasattr(current_user, 'city_slug') else None
+        user_interest = getattr(current_user, 'interest', None) or 'all'
+        user_traits = getattr(current_user, 'nd_traits', None) or []
+        user_city_slug = getattr(current_user, 'city_slug', None)
         
         # Get all eligible users except current user
         query = session.query(User).filter(
@@ -181,13 +181,13 @@ def get_potential_matches(user_id: int, limit: int = 50) -> List[User]:
             score = 0
             
             # Trait similarity scoring (higher = better match)
-            candidate_traits = candidate.nd_traits if candidate.nd_traits else []
+            candidate_traits = getattr(candidate, 'nd_traits', None) or []
             common_traits = len(set(user_traits) & set(candidate_traits))
             score += common_traits * 10  # 10 points per shared trait
             
             # City proximity scoring (same city_slug = bonus)
-            if (user_city_slug and hasattr(candidate, 'city_slug') and 
-                candidate.city_slug and candidate.city_slug == user_city_slug):
+            candidate_city_slug = getattr(candidate, 'city_slug', None)
+            if user_city_slug and candidate_city_slug and candidate_city_slug == user_city_slug:
                 score += 50  # 50 point bonus for same city
             
             scored_matches.append((score, candidate))
