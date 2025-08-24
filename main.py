@@ -1515,9 +1515,10 @@ async def migrate_existing_city_slugs():
         return False
 
 async def safe_edit_message(query, text, reply_markup=None):
-    """Safely edit message with comprehensive media handling"""
+    """Safely edit message with comprehensive media handling - ANTI-DUPLICATE version"""
     try:
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=None)
+        return True  # Success - message was edited
     except Exception as e:
         error_str = str(e).lower()
         if any(phrase in error_str for phrase in [
@@ -1527,17 +1528,17 @@ async def safe_edit_message(query, text, reply_markup=None):
             "bad request: there is no text",
             "message with video"
         ]):
-            # Message contains media or can't be edited - send new message
+            # Message contains media or can't be edited - send new message ONLY ONCE
             try:
                 await query.message.reply_text(text, reply_markup=reply_markup)
-            except Exception:
-                pass
+                return True  # Success - new message sent
+            except Exception as send_error:
+                logger.error(f"Failed to send fallback message: {send_error}")
+                return False
         else:
-            # Other errors - send new message
-            try:
-                await query.message.reply_text(text, reply_markup=reply_markup)
-            except Exception:
-                pass
+            # Other editing errors - don't send duplicate messages
+            logger.warning(f"Message edit failed with error: {e}")
+            return False
 
 async def get_city_from_coordinates(latitude: float, longitude: float) -> str:
     """Get city name from GPS coordinates using reverse geocoding"""
@@ -8216,7 +8217,7 @@ async def main():
     # Add handlers
     application.add_handler(conv_handler)
     application.add_handler(CommandHandler("restart", restart))
-    application.add_handler(CommandHandler("menu", force_main_menu))
+    # Note: menu handler already registered in conv_handler - no need to duplicate
     
     application.add_handler(CommandHandler("language", show_language_command))
     application.add_handler(CommandHandler("help", show_help_command))
