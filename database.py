@@ -42,14 +42,14 @@ class User(Base):
     bio = Column(Text)
     photos = Column(JSON, default=list)  # List of photo file_ids
     
-    # Profile status
-    profile_complete = Column(Boolean, default=False)
-    active = Column(Boolean, default=True)
+    # Profile status - removed non-existent columns
     
-    # Dating interactions
-    likes_sent = Column(JSON, default=list)  # List of user_ids
-    likes_received = Column(JSON, default=list)  # List of user_ids
-    matches = Column(JSON, default=list)  # List of user_ids
+    # Dating interactions - use correct column names from database
+    likes = Column(JSON, default=list)  # List of user_ids (legacy)
+    sent_likes = Column(JSON, default=list)  # List of user_ids
+    received_likes = Column(JSON, default=list)  # List of user_ids
+    unnotified_likes = Column(JSON, default=list)  # List of user_ids  
+    declined_likes = Column(JSON, default=list)  # List of user_ids
     
     # Neurodivergent traits
     nd_traits = Column(JSON, default=list)  # List of trait keys
@@ -144,11 +144,12 @@ def get_potential_matches(user_id: int, limit: int = 50) -> List[User]:
         user_interest = current_user.interest if current_user.interest else 'all'
         user_gender = current_user.gender if current_user.gender else 'unknown'
         
-        # Find all active, complete profiles except current user
+        # Find all users except current user (assuming all users with name/age/photos are complete)
         all_users = session.query(User).filter(
             User.user_id != user_id,
-            User.profile_complete.is_(True),
-            User.active.is_(True)
+            User.name.isnot(None),
+            User.age.isnot(None),
+            User.gender.isnot(None)
         ).limit(limit).all()
         
         # Filter for compatibility
@@ -260,8 +261,8 @@ def get_user_stats() -> Dict[str, int]:
     """
     with get_db_session() as session:
         total_users = session.query(User).count()
-        active_users = session.query(User).filter(User.active.is_(True)).count()
-        complete_profiles = session.query(User).filter(User.profile_complete.is_(True)).count()
+        active_users = session.query(User).filter(User.created_at.isnot(None)).count()
+        complete_profiles = session.query(User).filter(User.name.isnot(None), User.age.isnot(None)).count()
         
         return {
             'total_users': total_users,
