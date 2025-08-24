@@ -2668,7 +2668,7 @@ async def save_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "media_id": media_id or (photos[0] if photos else ""),
             "latitude": user_data.get("latitude"),
             "longitude": user_data.get("longitude"),
-            "created_at": datetime.now().isoformat(),
+            "created_at": datetime.now(),
             "lang": "ru",
             "nd_traits": user_data.get("selected_nd_traits", []),
             "nd_symptoms": user_data.get("selected_characteristics", []),
@@ -2707,6 +2707,8 @@ async def save_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         logger.error(f"Error saving user profile: {e}")
+        logger.error(f"Profile data that failed: {profile_data}")
+        logger.error(f"User data context: {user_data}")
         await update.message.reply_text(
             get_text(user_id, "profile_save_error")
         )
