@@ -2696,11 +2696,14 @@ async def save_user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
         # Remove any leftover reply keyboard buttons
-        await context.bot.send_message(
-            chat_id=user_id,
-            text="",
-            reply_markup=ReplyKeyboardRemove()
-        )
+        try:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text="",
+                reply_markup=ReplyKeyboardRemove()
+            )
+        except Exception as cleanup_error:
+            logger.warning(f"Failed to send keyboard cleanup message: {cleanup_error}")
 
         if context.user_data:
             context.user_data.clear()  # This will also clear the 'in_conversation' flag
