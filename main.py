@@ -309,7 +309,7 @@ LOCAL_TEXTS = {
         "photo_done": "✅ Готово",
         "photo_skip_remaining": "⏭️ Пропустить остальные",
         "photo_send_more": "Отправьте еще фото или нажмите кнопку:",
-        "photo_max_reached": "⚠️ Максимум 3 фото. Нажмите 'Готово' чтобы продолжить.",
+        "photo_max_reached": "⚠️ Фото загружено. Нажмите 'Готово' чтобы продолжить.",
         "photo_at_least_one": "⚠️ Пожалуйста, сначала отправьте хотя бы одно фото",
         "view_my_profile": "👤 Посмотреть мою анкету",
         "profile_incomplete": "❌ Ваш профиль не завершен. Завершите создание анкеты сначала.",
@@ -485,7 +485,7 @@ LOCAL_TEXTS = {
         "questionnaire_city": "📍 Share your location or enter your city:",
         "questionnaire_name": "What should I call you?",
         "questionnaire_bio": "Tell me about yourself and who you want to find. This will help better match you.",
-        "questionnaire_photo": "Now send up to 3 photos, video, or GIF 👍 (video up to 15 sec)",
+        "questionnaire_photo": "📸 Upload a photo, video, or GIF 👍 (video up to 15 sec)",
         "profile_preview": "This is how your profile looks:",
         "profile_correct": "Is everything correct?",
         "btn_girls": "Girls",
@@ -523,7 +523,7 @@ LOCAL_TEXTS = {
         "photo_done": "✅ Done",
         "photo_skip_remaining": "⏭️ Skip remaining",
         "photo_send_more": "Send another photo or click button:",
-        "photo_max_reached": "⚠️ Maximum 3 photos. Click 'Done' to continue.",
+        "photo_max_reached": "⚠️ Photo uploaded. Click 'Done' to continue.",
         "photo_at_least_one": "⚠️ Please send at least one photo first",
         "view_my_profile": "👤 View my profile",
         "profile_incomplete": "❌ Your profile is incomplete. Please complete your profile first.",
@@ -2539,9 +2539,9 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                     
                     lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
                     if lang == 'en':
-                        photo_msg = f"✅ Photo {photos_count}/3 added!\n\nSend more photos or press a button:"
+                        photo_msg = f"✅ Photo uploaded!\n\nPress a button to continue:"
                     else:
-                        photo_msg = f"✅ Фото {photos_count}/3 добавлено!\n\nОтправьте еще фото или нажмите кнопку:"
+                        photo_msg = f"✅ Фото загружено!\n\nНажмите кнопку чтобы продолжить:"
                     
                     await update.message.reply_text(photo_msg, reply_markup=reply_markup)
                     return PHOTO
@@ -2558,7 +2558,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
                 reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
                 
                 lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
-                max_msg = "⚠️ Maximum 3 photos. Press 'Done' to continue." if lang == 'en' else "⚠️ Максимум 3 фото. Нажмите 'Готово' чтобы продолжить."
+                max_msg = "⚠️ Photo uploaded. Press 'Done' to continue." if lang == 'en' else "⚠️ Фото загружено. Нажмите 'Готово' чтобы продолжить."
                 await update.message.reply_text(max_msg, reply_markup=reply_markup)
                 return PHOTO
 
@@ -4254,7 +4254,7 @@ async def start_change_photo(query, context, user_id):
     lang = user.get('lang', 'ru') if user else 'ru'
     
     if lang == 'en':
-        prompt = "📸 Update your profile pictures!\n\n✨ You can now:\n• Upload up to 3 photos\n• Use a video as your profile picture\n• Use a GIF/animation as your profile picture\n\nSend your media or press Cancel:"
+        prompt = "📸 Update your profile picture!\n\n✨ You can now:\n• Upload a photo\n• Use a video as your profile picture\n• Use a GIF/animation as your profile picture\n\nSend your media or press Cancel:"
         cancel_text = "❌ Cancel"
     else:
         prompt = "📸 Обновите ваши фото профиля!\n\n✨ Теперь вы можете:\n• Загрузить фото\n• Использовать видео как фото профиля\n• Использовать GIF/анимацию как фото профиля\n\nОтправьте медиа или нажмите Отмена:"
@@ -4913,9 +4913,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
                     
                     if lang == 'en':
-                        photo_msg = f"✅ Photo {photos_count}/3 added!\n\nSend more photos or press 'Done':"
+                        photo_msg = f"✅ Photo uploaded!\n\nPress 'Done' to continue:"
                     else:
-                        photo_msg = f"✅ Фото {photos_count}/3 добавлено!\n\nОтправьте еще фото или нажмите 'Готово':"
+                        photo_msg = f"✅ Фото загружено!\n\nНажмите 'Готово' чтобы продолжить:"
                     
                     await update.message.reply_text(photo_msg, reply_markup=reply_markup)
                     return
@@ -4930,7 +4930,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 # Already have 3 photos
                 lang = db.get_user(user_id).get('lang', 'ru') if db.get_user(user_id) else 'ru'
-                max_msg = "⚠️ Maximum 3 photos. Press 'Done' to continue." if lang == 'en' else "⚠️ Максимум 3 фото. Нажмите 'Готово' чтобы продолжить."
+                max_msg = "⚠️ Photo uploaded. Press 'Done' to continue." if lang == 'en' else "⚠️ Фото загружено. Нажмите 'Готово' чтобы продолжить."
                 await update.message.reply_text(max_msg)
                 return
         
